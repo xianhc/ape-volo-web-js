@@ -208,6 +208,13 @@
   // 更新记录
   const changeLogList = ref([
     {
+      version: 'v3.5.2',
+      date: '2026-04-12',
+      content: '前端重构为TS版本，UnoCSS替换Tailwind CSS，用户偏好设置持久化。',
+      link: 'https://www.apevolo.com/change-log.html',
+      tag: '里程碑'
+    },
+    {
       version: 'v3.5.1',
       date: '2026-02-06',
       content:
