@@ -27,7 +27,7 @@
               <div class="content">
                 <el-progress
                   type="dashboard"
-                  :percentage="parseFloat(data.disk.usageRate)"
+                  :percentage="parseFloat(data.disk.usageRate || '0')"
                 />
               </div>
             </el-tooltip>
@@ -50,7 +50,7 @@
               <div class="content">
                 <el-progress
                   type="dashboard"
-                  :percentage="parseFloat(data.memory.usageRate)"
+                  :percentage="parseFloat(data.memory.usageRate || '0')"
                 />
               </div>
             </el-tooltip>
@@ -72,7 +72,7 @@
               <div class="content">
                 <el-progress
                   type="dashboard"
-                  :percentage="parseFloat(data.cpu.used)"
+                  :percentage="parseFloat(data.cpu.used || '0')"
                 />
               </div>
             </el-tooltip>
@@ -97,7 +97,7 @@
               <div class="content">
                 <el-progress
                   type="dashboard"
-                  :percentage="parseFloat(data.swap.usageRate) || 0"
+                  :percentage="parseFloat(data.swap.usageRate || '0') || 0"
                 />
               </div>
             </el-tooltip>
@@ -115,7 +115,9 @@
                 CPU使用率监控
               </span>
             </template>
-            <e-charts :options="cpuInfo" height="240px" />
+            <div class="h-[240px]">
+              <e-charts :options="cpuInfo" height="240px" />
+            </div>
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12">
@@ -125,7 +127,9 @@
                 内存使用率监控
               </span>
             </template>
-            <e-charts :options="memoryInfo" height="240px" />
+            <div class="h-[240px]">
+              <e-charts :options="memoryInfo" height="240px" />
+            </div>
           </el-card>
         </el-col>
       </el-row>
@@ -134,98 +138,94 @@
 </template>
 
 <script setup>
-  import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
-  import { ElCard, ElRow, ElCol, ElTooltip, ElProgress } from 'element-plus'
-  import ECharts from '@/components/eCharts/index.vue'
-  import { initData } from '@/api/data'
-  const monitor = ref(null)
-  const url = 'service/resources/info'
-  const data = reactive({
+import { ref, reactive, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { ElCard, ElRow, ElCol, ElTooltip, ElProgress } from 'element-plus';
+import { initData } from '@/api/data';
+const ECharts = defineAsyncComponent(() => import('@/components/Echarts.vue'));
+const monitor = ref(null);
+const url = '/server-resources/get-list';
+const data = reactive({
     sys: {},
     disk: {},
     memory: {},
     cpu: {},
     swap: {}
-  })
-
-  const cpuInfo = reactive({
+});
+const cpuInfo = reactive({
     grid: { top: 40, bottom: 40, left: 40, right: 20 },
     tooltip: { trigger: 'axis' },
     xAxis: { type: 'category', boundaryGap: false, data: [] },
     yAxis: { type: 'value', min: 0, max: 100, interval: 20 },
     series: [
-      {
-        data: [],
-        type: 'line',
-        areaStyle: { color: 'rgb(32, 160, 255)' },
-        itemStyle: { color: '#6fbae1', lineStyle: { color: '#6fbae1' } }
-      }
+        {
+            data: [],
+            type: 'line',
+            areaStyle: { color: 'rgb(32, 160, 255)' },
+            itemStyle: { color: '#6fbae1', lineStyle: { color: '#6fbae1' } }
+        }
     ]
-  })
-
-  const memoryInfo = reactive({
+});
+const memoryInfo = reactive({
     grid: { top: 40, bottom: 40, left: 40, right: 20 },
     tooltip: { trigger: 'axis' },
     xAxis: { type: 'category', boundaryGap: false, data: [] },
     yAxis: { type: 'value', min: 0, max: 100, interval: 20 },
     series: [
-      {
-        data: [],
-        type: 'line',
-        areaStyle: { color: 'rgb(32, 160, 255)' },
-        itemStyle: { color: '#6fbae1', lineStyle: { color: '#6fbae1' } }
-      }
+        {
+            data: [],
+            type: 'line',
+            areaStyle: { color: 'rgb(32, 160, 255)' },
+            itemStyle: { color: '#6fbae1', lineStyle: { color: '#6fbae1' } }
+        }
     ]
-  })
-
-  // 保证响应式赋值
-  function fillReactive(target, src) {
+});
+// 保证响应式赋值
+function fillReactive(target, src) {
     for (const key in target) {
-      if (typeof target[key] === 'object' && target[key] !== null && src[key]) {
-        Object.assign(target[key], src[key])
-      } else if (src[key] !== undefined) {
-        target[key] = src[key]
-      }
+        if (typeof target[key] === 'object' && target[key] !== null && src[key]) {
+            Object.assign(target[key], src[key]);
+        }
+        else if (src[key] !== undefined) {
+            target[key] = src[key];
+        }
     }
-  }
-
-  function updateCharts(res) {
+}
+function updateCharts(res) {
     if (cpuInfo.xAxis.data.length >= 8) {
-      cpuInfo.xAxis.data.shift()
-      memoryInfo.xAxis.data.shift()
-      cpuInfo.series[0].data.shift()
-      memoryInfo.series[0].data.shift()
+        cpuInfo.xAxis.data.shift();
+        memoryInfo.xAxis.data.shift();
+        cpuInfo.series[0].data.shift();
+        memoryInfo.series[0].data.shift();
     }
-    cpuInfo.xAxis.data.push(res.time)
-    memoryInfo.xAxis.data.push(res.time)
-    cpuInfo.series[0].data.push(parseFloat(res.cpu.used) || 0)
-    memoryInfo.series[0].data.push(parseFloat(res.memory.usageRate) || 0)
-  }
-
-  function init() {
+    cpuInfo.xAxis.data.push(res.time || '');
+    memoryInfo.xAxis.data.push(res.time || '');
+    cpuInfo.series[0].data.push(parseFloat(res.cpu?.used || '0') || 0);
+    memoryInfo.series[0].data.push(parseFloat(res.memory?.usageRate || '0') || 0);
+}
+function init() {
     initData(url, {})
-      .then((res) => {
-        const realData = res.data ? res.data : res
-        fillReactive(data, realData)
-        updateCharts(realData)
-      })
-      .catch((err) => {
+        .then((res) => {
+        const realData = res.data ? res.data : res;
+        fillReactive(data, realData);
+        updateCharts(realData);
+    })
+        .catch((err) => {
         // 可以弹窗提示
-        console.error('接口请求失败', err)
-      })
-      .finally(() => {})
-  }
-
-  onMounted(() => {
-    init()
+        console.error('接口请求失败', err);
+    })
+        .finally(() => { });
+}
+onMounted(() => {
+    init();
     monitor.value = setInterval(() => {
-      init()
-    }, 30000)
-  })
-
-  onBeforeUnmount(() => {
-    clearInterval(monitor.value)
-  })
+        init();
+    }, 30000);
+});
+onBeforeUnmount(() => {
+    if (monitor.value) {
+        clearInterval(monitor.value);
+    }
+});
 </script>
 
 <style scoped lang="scss">

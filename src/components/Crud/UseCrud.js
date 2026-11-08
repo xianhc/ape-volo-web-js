@@ -1,398 +1,129 @@
-import { reactive, ref, toRefs, watch, provide, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { downloadFile } from '@/utils/downloadFile'
-
-/**
- * CRUD操作的Vue3组合式API Hook
- * @param {Object} options - 配置选项
- * @param {Object} options.crudMethod - CRUD方法对象，包含list、add、edit、del、download方法
- * @param {Function} options.defaultForm - 默认表单数据生成函数
- * @param {Object} options.searchInfo - 搜索条件对象
- * @param {Array<number>} options.pageSizeOptions - 分页大小选项数组
- * @param {string} options.sortProp - 默认排序字段
- * @param {string} options.sortOrder - 默认排序方式
- * @param {boolean} options.refreshOnInit - 是否在初始化时刷新数据
- * @returns {Object} CRUD实例对象
- */
-export function useCrud({
-  crudMethod,
-  defaultForm,
-  searchInfo,
-  pageSizeOptions = [1, 10, 20, 30, 50, 100],
-  sortProp = 'id',
-  sortOrder = 'descending',
-  refreshOnInit = true
-}) {
-  // 主数据与状态
-  const crudState = reactive({
-    data: [],
-    form: defaultForm(),
-    formTitle: '',
-    pageIndex: 1,
-    pageSize: pageSizeOptions[1],
-    total: 0,
-    loading: false,
-    dialogVisible: false,
-    isEdit: false,
-    multipleSelection: [],
-    sortProp: sortProp,
-    sortOrder: sortOrder,
-    searchToggle: true
-  })
-
-  const query = searchInfo || ref({})
-
-  /**
-   * 获取查询参数
-   * @param {boolean} isExport - 是否为导出查询
-   * @returns {Object} 查询参数对象
-   */
-  function getQueryParams(isExport = false) {
-    if (isExport) {
-      return {
-        ...query.value
-      }
-    }
-    let sort = {}
-    if (crudState.sortProp && crudState.sortOrder) {
-      sort = {
-        sortField: crudState.sortProp,
-        orderByType: crudState.sortOrder === 'ascending' ? 0 : 1
-      }
-    }
-    return {
-      pageIndex: crudState.pageIndex,
-      pageSize: crudState.pageSize,
-      ...query.value,
-      ...sort
-    }
-  }
-
-  /**
-   * 刷新数据列表
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const refresh = async () => {
-    crudState.loading = true
-    try {
-      const params = getQueryParams()
-      const res = await crudMethod.list(params)
-      crudState.data = res.data.content || res.data || []
-      crudState.total = res.data.totalElements || res.total || 0
-    } finally {
-      crudState.loading = false
-    }
-  }
-
-  /**
-   * 打开新增对话框
-   * @param {Object} extra - 额外的表单数据
-   * @returns {void}
-   */
-  const toAdd = (extra = {}) => {
-    crudState.form = { ...defaultForm(), ...extra }
-    crudState.formTitle = '新增'
-    crudState.isEdit = false
-    crudState.dialogVisible = true
-  }
-
-  /**
-   * 打开编辑对话框
-   * @param {Object} row - 要编辑的行数据
-   * @returns {void}
-   */
-  const toEdit = (row) => {
-    crudState.form = { ...row }
-    crudState.formTitle = '编辑'
-    crudState.isEdit = true
-    crudState.dialogVisible = true
-  }
-
-  /**
-   * 重置表单数据
-   * @param {Object} data - 重置的数据，如果不传则使用默认表单数据
-   * @returns {void}
-   */
-  const resetForm = (data) => {
-    crudState.form = data ? { ...data } : defaultForm()
-  }
-
-  /**
-   * 关闭对话框
-   * @returns {void}
-   */
-  const closeDialog = () => {
-    crudState.isEdit = false
-    crudState.dialogVisible = false
-    resetForm()
-  }
-
-  /**
-   * 获取表单标题
-   * @returns {string} 表单标题
-   */
-  const getFormTitle = () => {
-    return `${crudState.isEdit ? '编辑' : '新增'}`
-  }
-
-  /**
-   * 保存数据（新增或编辑）
-   * @param {Object} formData - 表单数据
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const save = async (formData) => {
-    const submitData = formData || crudState.form
-    crudState.loading = true
-    try {
-      if (crudState.isEdit) {
-        await crudMethod.edit(submitData)
-        ElMessage({
-          type: 'success',
-          message: '编辑成功',
-          showClose: true
-        })
-      } else {
-        const res = await crudMethod.add(submitData)
-        ElMessage({
-          type: 'success',
-          message: res.data.message || '新增成功',
-          showClose: true
-        })
-      }
-      crudState.dialogVisible = false
-      crudState.isEdit = false
-      await refresh()
-    } finally {
-      crudState.loading = false
-    }
-  }
-
-  /**
-   * 验证表单并保存
-   * @param {Object} formRef - 表单引用
-   * @param {Object} customData - 自定义数据
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const validateAndSave = async (formRef, customData) => {
-    if (!formRef) {
-      console.warn('表单引用不存在')
-      return
-    }
-    try {
-      const valid = await formRef.validate()
-      if (valid) {
-        await save(customData)
-      }
-    } catch (error) {
-      console.log('表单验证失败', error)
-    }
-  }
-
-  /**
-   * 删除单条记录
-   * @param {Object} row - 要删除的行数据
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const doDelete = async (row) => {
-    crudState.loading = true
-    try {
-      const res = await crudMethod.del({ IdArray: [row.id] })
-      ElMessage({
-        type: 'success',
-        message: res.data.message
-      })
-      await refresh()
-    } finally {
-      crudState.loading = false
-    }
-  }
-
-  /**
-   * 批量删除记录
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const doBatchDelete = async () => {
-    if (!crudState.multipleSelection.length) {
-      ElMessage.warning('请先选择要删除的数据')
-      return
-    }
-    crudState.loading = true
-    try {
-      ElMessageBox.confirm(
-        `确认删除选中的${crudState.multipleSelection.length}条数据?`,
-        '警告',
-        {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
-        }
-      )
-        .then(async () => {
-          const res = await crudMethod.del({
-            IdArray: crudState.multipleSelection.map((row) => row.id)
-          })
-          ElMessage({
-            type: 'success',
-            message: res.data.message
-          })
-          await refresh()
-        })
-        .catch((err) => {
-          if (err === 'cancel' || err === 'close') return
-          console.error(err)
-        })
-    } finally {
-      crudState.loading = false
-    }
-  }
-
-  /**
-   * 导出数据
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const doExport = async () => {
-    crudState.loading = true
-    try {
-      const res = await crudMethod.download(getQueryParams(true))
-      // 1. 获取文件名
-      let fileName = 'download.xlsx'
-      const disposition = res.headers['content-disposition']
-      if (disposition) {
-        // 优先 filename*= ，其次 filename=
-        let match = disposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i)
-        if (match) {
-          // 解码 RFC 5987
-          fileName = decodeURIComponent(match[1].replace(/['"]/g, ''))
-        } else {
-          match = disposition.match(/filename="?([^"]+)"?/)
-          if (match) {
-            fileName = decodeURIComponent(escape(match[1])) // 兼容中文
-          }
-        }
-      }
-
-      downloadFile(res.data, fileName)
-    } finally {
-      crudState.loading = false
-    }
-  }
-
-  /**
-   * 分页页码改变事件
-   * @param {number} page - 新的页码
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const onPageChange = async (page) => {
-    crudState.pageIndex = page
-    await refresh()
-  }
-  /**
-   * 分页大小改变事件
-   * @param {number} size - 新的分页大小
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const onSizeChange = async (size) => {
-    crudState.pageSize = size
-    crudState.pageIndex = 1
-    await refresh()
-  }
-
-  /**
-   * 表格选择改变事件
-   * @param {Array} val - 选中的行数据数组
-   * @returns {void}
-   */
-  const onSelectionChange = (val) => {
-    crudState.multipleSelection = val
-  }
-
-  /**
-   * 重置查询条件
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const resetQuery = async () => {
-    if (searchInfo) {
-      Object.keys(searchInfo.value).forEach((key) => {
-        searchInfo.value[key] = null
-      })
-    } else {
-      Object.keys(query.value).forEach((key) => {
-        query.value[key] = null
-      })
-    }
-    crudState.sortProp = ''
-    crudState.sortOrder = ''
-    crudState.pageIndex = 1
-    await refresh()
-  }
-
-  /**
-   * 表格排序改变事件
-   * @param {Object} sortInfo - 排序信息
-   * @param {string} sortInfo.prop - 排序字段
-   * @param {string} sortInfo.order - 排序方式
-   * @returns {Promise<void>} 无返回值的Promise
-   */
-  const onSortChange = async ({ prop, order }) => {
-    crudState.sortProp = prop
-    crudState.sortOrder = order
-    crudState.pageIndex = 1
-    await refresh()
-  }
-
-  let timer = null
-  if (searchInfo) {
-    watch(
-      searchInfo,
-      () => {
-        clearTimeout(timer)
-        timer = setTimeout(async () => {
-          crudState.pageIndex = 1
-          await refresh()
-        }, 500) // 防抖处理
-      },
-      { deep: true }
-    )
-  }
-
-  /**
-   * 分页配置对象
-   */
-  const pagination = computed(() => ({
-    'current-page': crudState.pageIndex,
-    'page-size': crudState.pageSize,
-    total: crudState.total,
-    pageSizes: pageSizeOptions,
-    layout: 'total, sizes, prev, pager, next, jumper',
-    onCurrentChange: onPageChange,
-    onSizeChange: onSizeChange
-  }))
-
-  const crudInstance = {
-    ...toRefs(crudState),
+import { ref, computed } from 'vue'
+import { cloneDeep } from 'lodash-es'
+import { ElMessage } from 'element-plus'
+import { useTableController } from '../../composables/useTableController.js'
+import { useEntityEditor } from '../../composables/useEntityEditor.js'
+import { useMutationAction } from '../../composables/useMutationAction.js'
+import { useExportAction } from '../../composables/useExportAction.js'
+import { confirmAction } from '../../services/feedback/confirmation.js'
+import { provideCrudForm } from './crudContext.js'
+export function useCrud(options) {
+  const { crudMethod } = options
+  const query = options.searchInfo ?? ref({})
+  const defaults = cloneDeep(query.value)
+  const table = useTableController({
     query,
-    pagination,
-    refresh,
-    toAdd,
-    toEdit,
-    save,
-    doDelete,
-    doBatchDelete,
-    doExport,
-    onPageChange,
-    onSizeChange,
-    onSelectionChange,
-    resetQuery,
-    onSortChange,
-    resetForm,
-    closeDialog,
-    getFormTitle,
-    validateAndSave
+    defaults: () => cloneDeep(defaults),
+    list: async (params, requestOptions) => {
+      const response = await crudMethod.list(params, requestOptions)
+      const payload = response.data
+      return {
+        ...response,
+        data: Array.isArray(payload)
+          ? { items: payload, totalCount: payload.length }
+          : payload
+      }
+    },
+    pageSizes: options.pageSizeOptions ?? [1, 10, 20, 30, 50, 100],
+    defaultPageSize: (options.pageSizeOptions ?? [1, 10])[1],
+    defaultSort: {
+      prop: options.sortProp ?? 'id',
+      order: options.sortOrder ?? 'descending'
+    },
+    refreshOnInit: options.refreshOnInit
+  })
+  const editor = useEntityEditor({
+    defaults: options.defaultForm,
+    create: async (value) => {
+      const response = await crudMethod.add(value)
+      ElMessage.success(response.data.message || '新增成功')
+    },
+    update: async (value) => {
+      const response = await crudMethod.edit(value)
+      ElMessage.success(response.data.message || '编辑成功')
+    },
+    saved: table.refresh
+  })
+  const removal = useMutationAction(async (rows) => {
+    if (!rows.length) {
+      ElMessage.warning('请先选择要删除的数据')
+      return false
+    }
+    if (
+      !(await confirmAction('确认删除选中的' + rows.length + '条数据?', '警告'))
+    )
+      return false
+    const response = await crudMethod.del(rows.map((row) => row.id))
+    ElMessage.success(response.data.message || '删除成功')
+    await table.refresh()
+  })
+  const exporting = useExportAction({
+    export: (params) => {
+      if (!crudMethod.download)
+        throw new Error('Export is not available for this list')
+      return crudMethod.download(params)
+    },
+    currentQuery: () => table.currentQuery(false)
+  })
+  const instance = {
+    data: table.data,
+    form: editor.form,
+    formTitle: computed(() => editor.title.value),
+    pageIndex: table.pageIndex,
+    pageSize: table.pageSize,
+    total: table.total,
+    loading: computed(
+      () => table.loading.value || editor.saving.value || removal.pending.value
+    ),
+    error: table.error,
+    submitting: computed(() => editor.saving.value || removal.pending.value),
+    exporting: exporting.exporting,
+    dialogVisible: editor.visible,
+    isEdit: editor.editing,
+    multipleSelection: table.selection,
+    sortProp: table.sortProp,
+    sortOrder: table.sortOrder,
+    searchToggle: table.searchVisible,
+    query,
+    pagination: table.pagination,
+    refresh: table.refresh,
+    toAdd: editor.openCreate,
+    toEdit: (row) => editor.openEdit({ ...options.defaultForm(), ...row }),
+    save: async (value) => {
+      await editor.save(value)
+    },
+    doDelete: async (row) => {
+      await removal.run([row])
+    },
+    doBatchDelete: async () => {
+      await removal.run([...table.selection.value])
+    },
+    doExport: async () => {
+      try {
+        await exporting.run()
+      } catch {
+        /* 请求层反馈错误，导出模块释放状态。 */
+      }
+    },
+    onPageChange: table.pagination.value.onCurrentChange,
+    onSizeChange: table.pagination.value.onSizeChange,
+    onSelectionChange: table.onSelectionChange,
+    resetQuery: table.resetQuery,
+    onSortChange: table.onSortChange,
+    resetForm: editor.reset,
+    closeDialog: editor.close,
+    getFormTitle: () => editor.title.value,
+    validateAndSave: async (form, value) => {
+      await editor.validateAndSave(form, value)
+    }
   }
-
-  provide('crud', crudInstance)
-  if (refreshOnInit) {
-    void refresh()
-  }
-  return crudInstance
+  provideCrudForm({
+    form: instance.form,
+    dialogVisible: instance.dialogVisible,
+    loading: instance.loading,
+    closeDialog: instance.closeDialog,
+    getFormTitle: instance.getFormTitle,
+    validateAndSave: instance.validateAndSave
+  })
+  return instance
 }

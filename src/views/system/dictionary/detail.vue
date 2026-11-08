@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="table-managed-view">
     <!-- 未选择字典时的提示 -->
     <el-empty
       v-if="!props.selectedDictionaryId"
@@ -8,152 +8,188 @@
     />
 
     <!-- 字典详情列表 -->
-    <div v-else>
-      <div class="ape-volo-search">
-        <el-form :inline="true" :model="detailSearchInfo">
+    <TablePage
+      v-else
+      title="字典详情"
+      :data="data"
+      :columns="tableColumns"
+      :loading="loading"
+      :error="crud.error.value"
+      row-key="id"
+      @selection-change="onSelectionChange"
+      @sort-change="onSortChange"
+      @refresh="refresh"
+    >
+      <template #search>
+        <SearchPanel
+          :model="detailSearchInfo"
+          :loading="loading"
+          @query="refresh"
+          @reset="resetQuery"
+        >
           <el-form-item label="标签名">
             <el-input v-model="detailSearchInfo.label" placeholder="请输入" />
           </el-form-item>
           <el-form-item label="数据值">
             <el-input v-model="detailSearchInfo.value" placeholder="请输入" />
           </el-form-item>
-          <SearchOpts />
-        </el-form>
-      </div>
-      <div class="ape-volo-table">
-        <div class="ape-volo-btn-list">
+        </SearchPanel>
+      </template>
+      <template #toolbar-left>
+        <CrudToolbarActions
+          :submitting="crud.submitting.value"
+          :exporting="crud.exporting.value"
+          :permissions="{
+            create: perms.add,
+            remove: perms.del,
+            export: perms.download
+          }"
+          :selected-count="multipleSelection.length"
+          @create="toAdd()"
+          @remove="doBatchDelete()"
+        />
+      </template>
+      <template #column-actions="scope">
+        <RowActions>
           <el-button
-            v-has-perm="perms.add"
+            v-has-perm="perms.edit"
+            :icon="createIconifyIcon('lucide:pencil')"
             type="primary"
-            icon="plus"
-            @click="toAdd"
-            >新增字典详情</el-button
+            link
+            @click="crud.toEdit(scope.row)"
           >
+            编辑
+          </el-button>
           <el-button
             v-has-perm="perms.del"
-            icon="delete"
+            :icon="createIconifyIcon('lucide:trash-2')"
             type="danger"
-            :disabled="!multipleSelection.length"
-            @click="doBatchDelete"
-            >删除
+            link
+            @click="crud.doDelete(scope.row)"
+          >
+            删除
           </el-button>
-        </div>
-        <el-table
-          ref="tableRef"
-          :data="data"
-          @selection-change="onSelectionChange"
-          @sort-change="onSortChange"
-          v-loading="loading"
-          row-key="id"
-        >
-          <el-table-column
-            align="left"
-            type="selection"
-            width="55"
-            sortable="custom"
-          />
-          <el-table-column
-            align="left"
-            prop="label"
-            label="标签名"
-            sortable="custom"
-          />
-          <el-table-column
-            align="left"
-            prop="value"
-            label="数据值"
-            sortable="custom"
-          />
-          <el-table-column
-            align="left"
-            prop="dictSort"
-            label="排序"
-            sortable="custom"
-          />
-          <el-table-column
-            align="left"
-            prop="createTime"
-            label="创建时间"
-            sortable="custom"
-          />
-          <el-table-column align="left" label="操作">
-            <template #default="scope">
-              <RowOpts :row="scope.row" :val="scope.row.name" :perms="perms" />
-            </template>
-          </el-table-column>
-        </el-table>
+        </RowActions>
+      </template>
+      <template #pagination>
         <el-pagination v-bind="pagination" />
-      </div>
-    </div>
+      </template>
+    </TablePage>
+
     <!--表单渲染-->
     <dictionaryDetailFormPanel :dict-name="selectedDictionaryName" />
   </div>
 </template>
 
 <script setup>
-  import { ref, watchEffect } from 'vue'
-  import { get, del, add, edit } from '@/api/system/dictionaryDetail'
-  import { useCrud } from '@/components/Crud/UseCrud'
-  import dictionaryDetailFormPanel from './module/dictionaryDetailFormPanel.vue'
-  import SearchOpts from '@/components/CRUD/SearchOpts.vue'
-  import RowOpts from '@/components/CRUD/RowOpts.vue'
-
-  defineOptions({
+import { computed, ref, watch } from 'vue';
+import { get, del, add, edit } from '@/api/system/dictionaryDetail';
+import TablePage from '@/components/crud/TablePage.vue';
+import CrudToolbarActions from '@/components/crud/CrudToolbarActions.vue';
+import RowActions from '@/components/crud/RowActions.vue';
+import SearchPanel from '@/components/crud/SearchPanel.vue';
+import { createIconifyIcon } from '@/components/icons';
+import { useCrud } from '@/components/crud/UseCrud';
+import dictionaryDetailFormPanel from './module/dictionaryDetailFormPanel.vue';
+defineOptions({
     name: 'DictionaryDetail'
-  })
-
-  const perms = {
+});
+const perms = {
     add: ['sys:dict:add'],
     edit: ['sys:dict:edit'],
     del: ['sys:dict:del'],
     download: ['sys:dict:download']
-  }
-
-  const props = defineProps({
+};
+const props = defineProps({
     selectedDictionaryId: {
-      type: Number,
-      default: 0
+        type: String,
+        default: ''
     },
     selectedDictionaryName: {
-      type: String,
-      default: ''
+        type: String,
+        default: ''
     }
-  })
-  const dictName = ref('')
-
-  // 使用不同的变量名避免冲突
-  const detailSearchInfo = ref({})
-  const {
-    data,
-    loading,
-    pagination,
-    onSelectionChange,
-    toAdd,
-    doBatchDelete,
-    multipleSelection,
-    onSortChange
-  } = useCrud({
-    crudMethod: { list: get, del: del, add: add, edit: edit },
+});
+const dictName = ref('');
+// 使用不同的变量名避免冲突
+const detailSearchInfo = ref({
+    label: '',
+    value: '',
+    dictId: undefined
+});
+const crud = useCrud({
+    crudMethod: {
+        list: get,
+        del: del,
+        add: add,
+        edit: edit
+    },
     defaultForm: () => ({
-      id: 0,
-      dictId: props.selectedDictionaryId,
-      label: null,
-      value: null,
-      dictSort: 999
+        id: '0',
+        dictId: props.selectedDictionaryId,
+        label: '',
+        value: '',
+        dictSort: 999
     }),
     searchInfo: detailSearchInfo,
     sortProp: 'dictSort',
     sortOrder: 'ascending',
     refreshOnInit: false
-  })
-
-  // 使用 watchEffect 确保响应式更新
-  watchEffect(() => {
-    if (props.selectedDictionaryId) {
-      detailSearchInfo.value.dictId = props.selectedDictionaryId
+});
+const { data, loading, refresh, resetQuery, pagination, onSelectionChange, toAdd, doBatchDelete, multipleSelection, onSortChange } = crud;
+const tableColumns = computed(() => [
+    {
+        key: 'selection',
+        label: '',
+        type: 'selection',
+        width: 55,
+        align: 'left'
+    },
+    {
+        key: 'label',
+        label: '标签名',
+        prop: 'label',
+        sortable: 'custom',
+        minWidth: 160,
+        align: 'left'
+    },
+    {
+        key: 'value',
+        label: '数据值',
+        prop: 'value',
+        sortable: 'custom',
+        minWidth: 160,
+        align: 'left'
+    },
+    {
+        key: 'dictSort',
+        label: '排序',
+        prop: 'dictSort',
+        sortable: 'custom',
+        width: 110,
+        align: 'left'
+    },
+    {
+        key: 'creationTime',
+        label: '创建时间',
+        prop: 'creationTime',
+        sortable: 'custom',
+        minWidth: 170,
+        align: 'left'
+    },
+    {
+        key: 'actions',
+        label: '操作',
+        width: 180,
+        align: 'left',
+        placement: 'end'
     }
-    if (props.selectedDictionaryName) {
-      dictName.value = props.selectedDictionaryName
-    }
-  })
+]);
+// 切换左侧字典时同步查询条件并重新加载字典项
+watch(() => [props.selectedDictionaryId, props.selectedDictionaryName], ([id, name]) => {
+    detailSearchInfo.value.dictId = id || undefined;
+    dictName.value = name || '';
+    if (id)
+        refresh();
+});
 </script>

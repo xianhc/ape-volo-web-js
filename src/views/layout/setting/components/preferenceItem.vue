@@ -1,8 +1,11 @@
 <template>
   <div class="ape-theme-setting-item">
-    <div class="flex items-center gap-2">
+    <div class="preference-copy">
       <span class="ape-theme-setting-label">{{ label }}</span>
-      <slot name="suffix"></slot>
+      <span v-if="description" class="setting-help-text">{{
+        description
+      }}</span>
+      <slot v-else name="suffix"></slot>
     </div>
     <div class="flex items-center setting-controls">
       <slot></slot>
@@ -11,101 +14,39 @@
 </template>
 
 <script setup>
-  import { computed } from 'vue'
-  import { storeToRefs } from 'pinia'
-  import { useAppStore } from '@/pinia'
-
-  defineOptions({
+/**
+ * 偏好设置项组件。
+ */
+defineOptions({
     name: 'PreferenceItem'
-  })
-
-  defineProps({
-    label: {
-      type: String,
-      required: true
-    }
-  })
-
-  const appStore = useAppStore()
-  const { config } = storeToRefs(appStore)
-
-  const primaryColor = computed(() => config.value.primaryColor)
-  const primaryColorWithOpacity = computed(
-    () => config.value.primaryColor + '40'
-  )
+});
+defineProps({
+    label: { type: String, required: true },
+    description: { type: String, required: false }
+});
 </script>
 
 <style scoped>
-  .setting-controls {
-    ::v-deep(.el-switch) {
-      --el-switch-on-color: v-bind(primaryColor);
-      --el-switch-off-color: #d1d5db;
-    }
-
-    ::v-deep(.el-select) {
-      .el-input__wrapper {
-        border: 1px solid #e5e7eb;
-        border-radius: calc(var(--ape-volo-radius));
-        transition: all 150ms ease-in-out;
-
-        &:hover {
-          border-color: v-bind(primaryColor);
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        &.is-focus {
-          border-color: v-bind(primaryColor);
-          box-shadow: 0 0 0 2px v-bind(primaryColorWithOpacity);
-        }
-      }
-    }
-
-    ::v-deep(.el-input-number) {
-      .el-input__wrapper {
-        border: 1px solid #e5e7eb;
-        border-radius: calc(var(--ape-volo-radius));
-        transition: all 150ms ease-in-out;
-
-        &:hover {
-          border-color: v-bind(primaryColor);
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        &.is-focus {
-          border-color: v-bind(primaryColor);
-          box-shadow: 0 0 0 2px v-bind(primaryColorWithOpacity);
-        }
-      }
-    }
+  .preference-copy {
+    display: grid;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+    padding-right: 0;
   }
 
-  .dark .setting-controls {
+  .setting-controls {
+    flex: none;
+    min-width: 0;
+
     ::v-deep(.el-switch) {
-      --el-switch-off-color: #4b5563;
+      --el-switch-on-color: var(--el-color-primary);
+      --el-switch-off-color: var(--app-border-strong);
     }
 
-    ::v-deep(.el-select) {
-      .el-input__wrapper {
-        border-color: #4b5563;
-        background-color: #374151;
-
-        &:hover {
-          border-color: v-bind(primaryColor);
-        }
-      }
-    }
-
+    ::v-deep(.el-select),
     ::v-deep(.el-input-number) {
-      .el-input__wrapper {
-        border-color: #4b5563;
-        background-color: #374151;
-
-        &:hover {
-          border-color: v-bind(primaryColor);
-        }
-      }
+      width: 100%;
     }
   }
 </style>

@@ -1,16 +1,15 @@
-import JSEncrypt from 'jsencrypt'
-
-// 密钥对生成 http://web.chacuo.net/netrsakeypair
-
-const publicKey =
-  'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCAYjJNTDWSTJ8RBnZ9hp7AS8eF\n' +
-  'JvxpuZYTqGjD8qak45DKkAhpi7SNXDNbfDXNbUFeH465hwQIznS5fHdWgUAoqByG\n' +
-  'jHoYu1jRhDx72EgKhuvDQ3sxwLJr0Ynx1f1Ny9yt8wtLaVc9KcJ8m/pHmmAGz+xf\n' +
-  '7rzZ8dJvnee+OHMkNwIDAQAB'
-
-// 加密
-export function encrypt(txt) {
-  const encryptor = new JSEncrypt()
-  encryptor.setPublicKey(publicKey) // 设置公钥
-  return encryptor.encrypt(txt) // 对需要加密的数据进行加密
+import { encryptWithPublicKey, importPasswordPublicKey } from "./rsaCrypto.js";
+/** 每次密码操作读取部署目录中的公钥，替换文件后无需重新构建或刷新页面。 */
+export async function loadPasswordPublicKey(baseUrl = import.meta.env.BASE_URL) {
+    const response = await fetch(`${baseUrl}keys/password-public.pem`, {
+        cache: 'no-store'
+    });
+    if (!response.ok) {
+        throw new Error(`密码传输公钥加载失败：HTTP ${response.status}`);
+    }
+    return importPasswordPublicKey(await response.text());
+}
+/** 同一次操作的多个密码字段应传入同一公钥；未传入时重新加载。 */
+export async function encrypt(txt, publicKey) {
+    return encryptWithPublicKey(txt, publicKey ?? (await loadPasswordPublicKey()));
 }

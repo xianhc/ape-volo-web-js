@@ -2,14 +2,14 @@
   <div class="h-full">
     <div
       v-if="mode === 'TopNav'"
-      class="bg-white h-[calc(100%-4px)] text-slate-700 dark:text-slate-300 mx-2 dark:bg-slate-900 flex items-center w-[calc(100vw-600px)] overflow-auto"
+      class="navigation-surface top-navigation h-full min-w-0 flex items-center"
     >
       <el-menu
         :default-active="routerStore.topActive"
         mode="horizontal"
         class="!border-r-0 border-b-0 w-full flex gap-1 items-center box-border h-[calc(100%-1px)]"
         unique-opened
-        @select="(index, _, ele) => selectMenuItem(index, _, ele, true)"
+        @select="handleTopSelect"
       >
         <template v-for="item in routerStore.topMenu">
           <menu-node
@@ -23,20 +23,20 @@
     </div>
     <div
       v-if="mode === 'SidebarNav'"
-      class="relative h-full bg-white text-slate-700 dark:text-slate-300 dark:bg-slate-900 shadow dark:shadow-gray-700"
-      :class="isCollapse ? '' : '  px-2'"
+      class="navigation-surface sidebar-column relative h-full flex flex-col min-h-0 box-border"
+      :class="{ 'is-collapsed': isCollapse }"
       :style="{
         width: layoutSideWidth + 'px'
       }"
     >
-      <el-scrollbar>
+      <el-scrollbar class="flex-1 min-h-0">
         <el-menu
           :collapse="isCollapse"
           :collapse-transition="false"
           :default-active="active"
           class="!border-r-0 w-full"
           unique-opened
-          @select="(index, _, ele) => selectMenuItem(index, _, ele, false)"
+          @select="handleLeftSelect"
         >
           <template v-for="item in routerStore.leftMenu">
             <menu-node
@@ -47,94 +47,82 @@
           </template>
         </el-menu>
       </el-scrollbar>
-      <div
-        class="absolute bottom-8 right-2 w-8 h-8 bg-gray-50 dark:bg-slate-800 flex items-center justify-center rounded cursor-pointer"
-        :class="isCollapse ? 'right-0 left-0 mx-auto' : 'right-2'"
-        @click="toggleCollapse"
-      >
-        <el-icon v-if="!isCollapse">
-          <DArrowLeft />
-        </el-icon>
-        <el-icon v-else>
-          <DArrowRight />
-        </el-icon>
-      </div>
+      <SidebarFooter />
     </div>
   </div>
 </template>
 <script setup>
-  import MenuNode from '@/views/layout/navigation/menuNode.vue'
-  import { ref, provide, watchEffect, computed } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
-  import { useRouterStore } from '@/pinia/modules/router'
-  import { useAppStore } from '@/pinia'
-  import { storeToRefs } from 'pinia'
-  const appStore = useAppStore()
-  const { device, config } = storeToRefs(appStore)
-
-  defineOptions({
+/**
+ * 混合导航组件：顶部与侧栏联动。
+ */
+import SidebarFooter from './SidebarFooter.vue';
+import MenuNode from '@/views/layout/navigation/MenuNode.vue';
+import { ref, provide, watchEffect, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useRouterStore } from '@/pinia/modules/router';
+import { useAppStore } from '@/pinia';
+import { storeToRefs } from 'pinia';
+import { navigateToMenu } from '@/services/navigation/menuNavigation';
+const appStore = useAppStore();
+const { config, sidebarCollapsed: isCollapse } = storeToRefs(appStore);
+defineOptions({
     name: 'CombinationNav'
-  })
-
-  defineProps({
-    mode: {
-      type: String,
-      default: 'SidebarNav'
-    }
-  })
-
-  const route = useRoute()
-  const router = useRouter()
-  const routerStore = useRouterStore()
-  const isCollapse = ref(false)
-  const active = ref('')
-  const layoutSideWidth = computed(() => {
+});
+const props = defineProps({
+    mode: { type: String, required: false, default: 'SidebarNav' }
+});
+const route = useRoute();
+const router = useRouter();
+const routerStore = useRouterStore();
+const active = ref('');
+const layoutSideWidth = computed(() => {
     if (!isCollapse.value) {
-      return config.value.layoutSideWidth
-    } else {
-      return config.value.layoutSideCollapsedWidth
+        return config.value.layoutSideWidth;
     }
-  })
-  watchEffect(() => {
-    active.value = route.name
-  })
-
-  watchEffect(() => {
-    if (device.value === 'mobile') {
-      isCollapse.value = true
-    } else {
-      isCollapse.value = false
+    else {
+        return config.value.layoutSideCollapsedWidth;
     }
-  })
-
-  provide('isCollapse', isCollapse)
-
-  const selectMenuItem = (index, _, ele, top) => {
-    if (index === route.name) return
-    if (index.indexOf('http://') > -1 || index.indexOf('https://') > -1) {
-      window.open(index, '_blank')
-      return
-    }
-
+});
+watchEffect(() => {
+    active.value = String(route.name || '');
+});
+provide('isCollapse', computed(() => props.mode === 'SidebarNav' && isCollapse.value));
+/**
+ * 执行当前菜单项并按规则收起菜单。
+ * @param index 当前项目在集合中的位置。
+ * @param _ 框架传入但此回调不使用的参数。
+ * @param __ 框架传入但此回调不使用的参数。
+ * @param top 当前顶部菜单选择。
+ */
+const selectMenuItem = (index, _, __, top) => {
     if (!top) {
-      router.push({ name: index })
-      return
+        const menu = routerStore.routeMap[index];
+        if (menu)
+            void navigateToMenu(router, menu);
+        return;
     }
-    const leftMenu = routerStore.setLeftMenu(index)
+    const leftMenu = routerStore.setLeftMenu(index);
     if (!leftMenu) {
-      router.push({ name: index })
-      return
+        const menu = routerStore.routeMap[index];
+        if (menu)
+            void navigateToMenu(router, menu);
+        return;
     }
-    const firstMenu = leftMenu.find(
-      (item) =>
-        !item.hidden &&
+    const firstMenu = leftMenu.find((item) => !item.hidden &&
         item.path.indexOf('http://') === -1 &&
-        item.path.indexOf('https://') === -1
-    )
-    router.push({ name: firstMenu.name })
-  }
-
-  const toggleCollapse = () => {
-    isCollapse.value = !isCollapse.value
-  }
+        item.path.indexOf('https://') === -1);
+    if (firstMenu?.name) {
+        void navigateToMenu(router, firstMenu);
+    }
+};
+/**
+ * 切换顶部或侧栏菜单并进入目标路由。
+ * @param index 当前项目在集合中的位置。
+ */
+const handleTopSelect = (index) => selectMenuItem(index, undefined, undefined, true);
+/**
+ * 切换顶部或侧栏菜单并进入目标路由。
+ * @param index 当前项目在集合中的位置。
+ */
+const handleLeftSelect = (index) => selectMenuItem(index, undefined, undefined, false);
 </script>

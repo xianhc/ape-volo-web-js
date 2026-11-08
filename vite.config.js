@@ -1,51 +1,70 @@
+/******************************************************************************
+ * 项目名称：APE-VOLO-ADMIN
+ * 开源地址：https://github.com/xianhc/ape-volo-admin
+ * 系统官网：https://www.apevolo.com
+ * 联系邮箱：apevolo@gmail.com
+ *
+ * Copyright © 2022 xianhc（冼浩春）。保留所有权利。
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * 本项目采用 Apache License 2.0，完整许可条款详见根目录 LICENSE 文件。
+ *
+ * 版权与署名保留要求（Apache License 2.0 第 4 条）：
+ * 再分发本项目或其衍生作品时，须向接收者提供许可证副本。
+ * 以源码形式分发衍生作品时，须保留与该作品相关的原始版权及署名通知，
+ * 不得删除原始通知或以他人署名替换；修改过的文件须显著注明已作修改。
+ * 上述说明为许可证要求的提示，完整义务以 LICENSE 条款为准。
+ *
+ * 作者保留依法维护自身合法权益的权利。授权与合作事宜请通过上述邮箱联系。
+ ******************************************************************************/
+
 import { defineConfig, loadEnv } from 'vite'
-import legacyPlugin from '@vitejs/plugin-legacy'
 import bannerPlugin from 'vite-plugin-banner'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vuePlugin from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
-import { createSvgIconsPlugin } from 'vite-plugin-svg-icons'
+import iconAssetsPlugin from './iconAssets.js'
 import vueFilePathPlugin from './componentNameMap.js'
-import { printWelcomeOnce } from './src/welcome.js'
-import UnoCSS from '@unocss/vite'
+import { printWelcomeOnce } from './welcome.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
 const toNumber = (value, fallback) => {
   const numberValue = Number(value)
   return Number.isFinite(numberValue) ? numberValue : fallback
 }
-
-export default defineConfig(({ mode }) => {
+export default defineConfig(async ({ mode }) => {
+  const { default: UnoCSS } = await import('@unocss/vite')
   const env = loadEnv(mode || 'development', process.cwd(), '')
-
   // 把 .env.* 写入 process.env，便于插件/脚本复用
   for (const [key, value] of Object.entries(env)) {
     process.env[key] = value
   }
-
   const timestamp = Date.now()
-
   const alias = {
     '@': path.resolve(__dirname, 'src'),
     vue$: 'vue/dist/vue.runtime.esm-bundler.js'
   }
-
   const rollupOptions = {
     output: {
-      entryFileNames: 'assets/A92E5D4B7C1F8E3A6B4C9D2F0E7A1B3C[name].[hash].js',
-      chunkFileNames: 'assets/A92E5D4B7C1F8E3A6B4C9D2F0E7A1B3C[name].[hash].js',
-      assetFileNames:
-        'assets/A92E5D4B7C1F8E3A6B4C9D2F0E7A1B3C[name].[hash].[ext]'
+      entryFileNames: 'assets/APEVOLO_7F3C9A21-[name]-[hash].js',
+      chunkFileNames: 'assets/APEVOLO_7F3C9A21-[name]-[hash].js',
+      assetFileNames: 'assets/APEVOLO_7F3C9A21-[name]-[hash].[ext]',
+      // 按模块路径分组，而不是把包名当 chunk 入口：
+      // 数组写法（['element-plus']）会强制引入整包，令按需引入失效。
+      manualChunks(id) {
+        if (!id.includes('node_modules')) return
+        if (/[\\/]node_modules[\\/](element-plus|@element-plus)[\\/]/.test(id))
+          return 'element-plus'
+        if (/[\\/]node_modules[\\/](vue|vue-router|pinia|@vue)[\\/]/.test(id))
+          return 'vue'
+      }
     }
   }
-
   const baseApi = env.VITE_BASE_API || '/api'
-  const cliPort = toNumber(env.VITE_CLI_PORT, 8001)
+  const cliPort = toNumber(env.VITE_CLI_PORT, 9001)
   const serverPort = env.VITE_SERVER_PORT
   const basePath = env.VITE_BASE_PATH
   const proxyTarget = serverPort ? `${basePath}:${serverPort}/` : `${basePath}/`
-
   const config = {
     base: '/', // 编译后js导入的资源路径
     root: './', // index.html文件所在位置
@@ -53,29 +72,28 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias
     },
-    define: {
-      'process.env': {}
-    },
     css: {
       preprocessorOptions: {
         scss: {
           api: 'modern-compiler' // or "modern"
         }
-      },
-      postcss: './postcss.config.js'
+      }
     },
     server: {
       open: true,
       port: cliPort,
       proxy: {
         // 把key的路径代理到target位置
-        // detail: https://cli.vuejs.org/config/#devserver-proxy
+        // 动态接口的后端路由本身就带 /api 前缀，这里不再重写路径
         [baseApi]: {
           // 需要代理的路径   例如 '/api'
           target: proxyTarget,
-          changeOrigin: true,
-          rewrite: (proxyPath) =>
-            proxyPath.replace(new RegExp('^' + baseApi), '')
+          changeOrigin: true
+        },
+        // 后端静态文件（头像、上传附件）由 wwwroot 以根路径提供，不带 /api 前缀
+        '/uploads': {
+          target: proxyTarget,
+          changeOrigin: true
         }
       }
     },
@@ -96,24 +114,10 @@ export default defineConfig(({ mode }) => {
     plugins: [
       env.VITE_POSITION === 'open' &&
         vueDevTools({ launchEditor: env.VITE_EDITOR }),
-      legacyPlugin({
-        targets: [
-          'Android > 39',
-          'Chrome >= 60',
-          'Safari >= 10.1',
-          'iOS >= 10.3',
-          'Firefox >= 54',
-          'Edge >= 15'
-        ]
-      }),
       vuePlugin(),
-      createSvgIconsPlugin({
-        iconDirs: [path.resolve(process.cwd(), 'src/assets/icons')],
-        //symbolId: 'icon-[dir]-[name]' // 支持子目录，避免重名
-        symbolId: 'icon-[name]'
-      }),
-      bannerPlugin(`\n build based on ape-volo-admin \n Time : ${timestamp}`),
-      vueFilePathPlugin('./src/plugins/pathInfo.json'),
+      iconAssetsPlugin(),
+      bannerPlugin(`\n ape-volo-admin build \n Time : ${timestamp}`),
+      vueFilePathPlugin(),
       {
         name: 'ape-volo-welcome-message',
         configureServer(server) {

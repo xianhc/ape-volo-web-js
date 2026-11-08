@@ -2,7 +2,7 @@
   <div class="flex h-full">
     <!-- 一级菜单常驻侧边栏 -->
     <div
-      class="ape-volo-content relative h-full border-r shadow dark:shadow-gray-700"
+      class="navigation-surface dual-primary-column relative h-full box-border"
       :style="{
         width: config.layoutSideCollapsedWidth + 'px'
       }"
@@ -21,20 +21,20 @@
               "
               :key="item.name"
               :index="item.name"
-              class="dark:text-gray-300 overflow-hidden dual-top-menu-item"
+              class="overflow-hidden dual-top-menu-item"
               :style="{
                 height: firstLevelMenuItemHeight + 'px'
               }"
             >
               <div class="dual-top-menu-item__content">
                 <el-icon v-if="item.meta.icon" class="dual-top-menu-item__icon">
-                  <component :is="item.meta.icon" />
+                  <AppIcon :icon="String(item.meta.icon || '')" />
                 </el-icon>
                 <span v-else class="dual-top-menu-item__fallback">
-                  {{ item.meta.title[0] }}
+                  {{ menuTitle(item.meta)[0] }}
                 </span>
                 <span class="dual-top-menu-item__label">
-                  {{ item.meta.title }}
+                  {{ menuTitle(item.meta) }}
                 </span>
               </div>
             </el-menu-item>
@@ -43,7 +43,7 @@
                 :key="item.name"
                 :index="item.name"
                 :class="{ 'is-active': topActive === item.name }"
-                class="dark:text-gray-300 overflow-hidden dual-top-menu-item"
+                class="overflow-hidden dual-top-menu-item"
                 :style="{
                   height: firstLevelMenuItemHeight + 'px'
                 }"
@@ -53,13 +53,13 @@
                     v-if="item.meta.icon"
                     class="dual-top-menu-item__icon"
                   >
-                    <component :is="item.meta.icon" />
+                    <AppIcon :icon="String(item.meta.icon || '')" />
                   </el-icon>
                   <span v-else class="dual-top-menu-item__fallback">
-                    {{ item.meta.title[0] }}
+                    {{ menuTitle(item.meta)[0] }}
                   </span>
                   <span class="dual-top-menu-item__label">
-                    {{ item.meta.title }}
+                    {{ menuTitle(item.meta) }}
                   </span>
                 </div>
               </el-menu-item>
@@ -71,12 +71,13 @@
 
     <!-- 二级菜单并列显示 -->
     <div
-      class="ape-volo-content relative h-full border-r shadow dark:shadow-gray-700 px-2"
+      class="navigation-surface sidebar-column relative h-full flex flex-col min-h-0 box-border"
+      :class="{ 'is-collapsed': isCollapse }"
       :style="{
         width: layoutSideWidth + 'px'
       }"
     >
-      <el-scrollbar>
+      <el-scrollbar class="flex-1 min-h-0">
         <el-menu
           :collapse="isCollapse"
           :collapse-transition="false"
@@ -94,32 +95,25 @@
           </template>
         </el-menu>
       </el-scrollbar>
-      <div
-        class="absolute bottom-8 right-4 w-8 h-8 bg-gray-50 dark:bg-gray-800 flex items-center justify-center rounded cursor-pointer"
-        :class="isCollapse ? 'right-0 left-0 mx-auto' : 'right-4'"
-        @click="toggleCollapse"
-      >
-        <el-icon v-if="!isCollapse">
-          <DArrowLeft />
-        </el-icon>
-        <el-icon v-else>
-          <DArrowRight />
-        </el-icon>
-      </div>
+      <SidebarFooter />
     </div>
   </div>
 </template>
 
 <script setup>
-  import menuNode from '@/views/layout/navigation/menuNode.vue'
+  import AppIcon from '@/components/AppIcon.vue'
+  import { menuTitle } from '@/utils/menuTitle'
+  import SidebarFooter from './SidebarFooter.vue'
+  import menuNode from '@/views/layout/navigation/MenuNode.vue'
   import { ref, provide, watchEffect, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useRouterStore } from '@/pinia/modules/router'
   import { useAppStore } from '@/pinia'
   import { storeToRefs } from 'pinia'
+  import { navigateToMenu } from '@/services/navigation/menuNavigation'
 
   const appStore = useAppStore()
-  const { device, config } = storeToRefs(appStore)
+  const { config, sidebarCollapsed: isCollapse } = storeToRefs(appStore)
 
   defineOptions({
     name: 'DualSidebarNav'
@@ -128,7 +122,6 @@
   const route = useRoute()
   const router = useRouter()
   const routerStore = useRouterStore()
-  const isCollapse = ref(false)
   const active = ref('')
   const topActive = ref('')
   const secondLevelMenus = ref([])
@@ -146,7 +139,10 @@
 
   provide('isCollapse', isCollapse)
 
-  // 更新二级菜单
+  /**
+   * 更新二级菜单
+   * @param menuName 需要展开第二级菜单的顶级菜单标识。
+   */
   const updateSecondLevelMenus = (menuName) => {
     const menu = routerStore.asyncRouters[0]?.children.find(
       (item) => item.name === menuName
@@ -156,7 +152,10 @@
     }
   }
 
-  // 选择一级菜单
+  /**
+   * 选择一级菜单
+   * @param index 当前条目、菜单或字段在所属集合中的索引。
+   */
   const selectTopMenuItem = (index) => {
     topActive.value = index
 
@@ -172,38 +171,32 @@
       // 导航到第一个可见的子菜单
       const firstVisibleChild = menu.children.find((child) => !child.hidden)
       if (firstVisibleChild) {
-        navigateToMenuItem(firstVisibleChild.name)
+        void navigateToMenu(router, firstVisibleChild)
       }
     } else {
       // 如果没有子菜单，直接导航到该菜单，但不更新二级菜单区域
-      navigateToMenuItem(index)
+      const menu = routerStore.routeMap[index]
+      if (menu) void navigateToMenu(router, menu)
     }
   }
 
-  // 选择二级或更深层级的菜单
+  /**
+   * 选择二级或更深层级的菜单
+   * @param index 当前条目、菜单或字段在所属集合中的索引。
+   */
   const selectMenuItem = (index) => {
-    navigateToMenuItem(index)
+    const menu = routerStore.routeMap[index]
+    if (menu) void navigateToMenu(router, menu)
   }
 
   // 导航到指定菜单
-  const navigateToMenuItem = (index) => {
-    if (index === route.name) return
-    if (index.indexOf('http://') > -1 || index.indexOf('https://') > -1) {
-      window.open(index, '_blank')
-      return
-    } else {
-      router.push({ name: index })
-    }
-  }
-
-  const toggleCollapse = () => {
-    isCollapse.value = !isCollapse.value
-  }
-
   watchEffect(() => {
     active.value = route.name
 
-    // 找到当前路由所属的一级菜单
+    /**
+     * 找到当前路由所属的一级菜单
+     * @returns 当前路由所属顶级菜单名；无对应父级时由实现回退到当前路由名。
+     */
     const findParentMenu = () => {
       // 首先检查当前路由是否就是一级菜单
       const isTopMenu = routerStore.asyncRouters[0]?.children.some(
@@ -225,7 +218,11 @@
           return topMenu.name
         }
 
-        // 递归检查更深层级
+        /**
+         * 递归检查更深层级
+         * @param items 待操作的业务记录或包含标识和并发版本的目标集合。
+         * @returns 当前菜单子树中包含目标路由时为 true。
+         */
         const checkChildren = (items) => {
           for (const item of items || []) {
             if (item.name === route.name) {
@@ -281,14 +278,6 @@
       }
     }
   })
-
-  watchEffect(() => {
-    if (device.value === 'mobile') {
-      isCollapse.value = true
-    } else {
-      isCollapse.value = false
-    }
-  })
 </script>
 
 <style scoped>
@@ -323,7 +312,7 @@
     border-radius: 9999px;
     font-size: 12px;
     font-weight: 600;
-    background: rgba(148, 163, 184, 0.16);
+    background: color-mix(in srgb, var(--app-text-secondary) 16%, transparent);
   }
 
   .dual-top-menu-item__label {
@@ -359,10 +348,10 @@
   .dual-top-menu :deep(.el-menu-item.is-active) .dual-top-menu-item__label,
   .dual-top-menu :deep(.el-menu-item.is-active) .dual-top-menu-item__icon,
   .dual-top-menu :deep(.el-menu-item.is-active) .dual-top-menu-item__fallback {
-    color: #fff;
+    color: var(--app-primary-on);
   }
 
   .dual-top-menu :deep(.el-menu-item.is-active) .dual-top-menu-item__fallback {
-    background: rgba(255, 255, 255, 0.18);
+    background: color-mix(in srgb, var(--app-primary-on) 18%, transparent);
   }
 </style>

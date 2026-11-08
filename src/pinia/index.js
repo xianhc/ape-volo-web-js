@@ -1,11 +1,8 @@
-import { createPinia } from 'pinia'
-import { useAppStore } from '@/pinia/modules/app'
-import { useUserStore } from '@/pinia/modules/user'
-
-const store = createPinia()
-
+import { createPinia } from 'pinia';
+import { useAppStore } from "./modules/app.js";
+import { useUserStore } from "./modules/user.js";
+const store = createPinia();
 export function setupStore(app) {
-  app.use(store)
+    app.use(store);
 }
-
-export { store, useAppStore, useUserStore }
+export { store, useAppStore, useUserStore };

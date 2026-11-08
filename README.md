@@ -1,249 +1,170 @@
-## 📚 项目简介
+<p align="center">
+  <img src="public/logo.png" width="88" alt="Ape-Volo-Admin Logo" />
+</p>
 
-Ape-Volo-Admin 是一套面向企业场景的 **权限管理 / 后台管理系统解决方案**，帮助你快速搭建：用户、角色、菜单、接口权限、数据权限等通用后台能力，并在此基础上进行二次开发。
+<h1 align="center">Ape-Volo-Web-JS</h1>
 
-基于 **.NET 8 + SqlSugar + Vue 3 + Element Plus + Vite** 构建，默认开箱即用，同时保留足够的扩展空间，适合绝大多数 **.NET/C#** 项目落地。
+<p align="center">Ape-Volo-Admin 的 JavaScript 前端版本，基于 Vue 3 与 Element Plus。</p>
+<p align="center">集成认证授权、组织管理与常用业务模块，为中后台业务开发提供基础。</p>
 
-- 通用能力完备：认证授权、审计日志、缓存、任务调度、限流、数据权限、国际化等
-- 架构清晰可维护：分层模块化（接口层 / 业务层 / 基础设施层…）便于扩展与替换
-- 低侵入易集成：核心能力以通用方式提供，尽量减少对业务代码的“硬绑定”
+<p align="center">
+  <img src="https://img.shields.io/badge/Vue-3.5-42b883?style=flat-square" alt="Vue 3.5" />
+  <img src="https://img.shields.io/badge/JavaScript-ESM-F7DF1E?style=flat-square" alt="JavaScript" />
+  <img src="https://img.shields.io/badge/Element_Plus-2-409EFF?style=flat-square" alt="Element Plus 2" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square" alt="Apache License 2.0" /></a>
+</p>
 
-## 🌐 在线体验
+## 项目文档
 
-- 系统官网：<a href="https://www.apevolo.com" target="_blank" rel="noopener noreferrer">https://www.apevolo.com</a>
-- 系统预览：<a href="https://vip.apevolo.com" target="_blank" rel="noopener noreferrer">https://vip.apevolo.com</a>
-- 体验账号：`apevolo / 123456`
+- **系统官网 / 在线文档**：[https://www.apevolo.com](https://www.apevolo.com)
+- **仓库开发文档**：[开发规范](docs/development.md)
+- **软件著作权**：[查看证书](https://www.apevolo.com/copyright.pdf)
 
-## 💒 代码仓库
+## 在线演示
 
-### 后端 / API
+- **系统预览**：[https://vip.apevolo.com](https://vip.apevolo.com)
+- **体验账号**：`apevolo`
+- **体验密码**：`123456`
 
-- GitHub：https://www.github.com/xianhc/ape-volo-admin
-- Gitee：https://www.gitee.com/xianhc/ape-volo-admin
+## 项目介绍
 
-### 前端 / Web
+Ape-Volo-Admin 是面向管理后台与企业内部业务系统的开源项目系列，覆盖 **C#、Go、Java 三大主流后端语言**，并提供基于 **Vue 3 + Element Plus** 的 **TypeScript 与 JavaScript 双前端版本**。团队可以结合现有技术栈与开发习惯，选择适合自己的版本。
 
-- GitHub（TS版本）：https://www.github.com/xianhc/ape-volo-web
-- Gitee（TS版本）：https://www.gitee.com/xianhc/ape-volo-web
-- GitHub（JS版本）：https://www.github.com/xianhc/ape-volo-web-js
-- Gitee（JS版本）：https://www.gitee.com/xianhc/ape-volo-web-js
+项目内置用户、角色、菜单、部门和岗位管理，集成认证授权、数据权限、文件管理、任务调度、邮件与日志等常用能力。开发者可以复用已有业务模块及 CRUD、表格、表单组件，把精力集中在业务功能开发上。
 
-## 📁 项目结构
+**本仓库是原项目的 JavaScript 前端版本，仅包含 Web 客户端，不包含后端服务。** 使用普通 JavaScript、ESM 和 Vue `<script setup>`；配套后端及其他版本见[项目系列](#项目系列)。
 
-```
-ape-volo-web/
-├── public/                          # 静态资源目录
-│   ├── favicon.ico                  # 网站图标
-│   ├── logo.png                     # 应用 Logo
-├── src/                             # 源代码目录
-│   ├── api/                         # API 接口管理
-│   │   ├── auth.js                  # 认证相关接口
-│   │   ├── data.js                  # 数据管理接口
-│   │   ├── onlineUser.js            # 在线用户接口
-│   │   ├── verificationCode.js      # 验证码接口
-│   │   ├── log/                     # 日志模块接口
-│   │   │   ├── exceptionLog.js      # 异常日志记录
-│   │   │   ├── operateLog.js        # 操作日志记录
-│   │   │   └── taskLog.js           # 任务日志记录
-│   │   ├── message/                 # 消息模块接口
-│   │   │   └── email/               # 邮件消息接口
-│   │   ├── permission/              # 权限模块接口
-│   │   │   ├── api.js               # API 权限管理
-│   │   │   ├── department.js        # 部门管理
-│   │   │   ├── job.js               # 职位管理
-│   │   │   ├── menu.js              # 菜单管理
-│   │   │   ├── role.js              # 角色管理
-│   │   │   └── user.js              # 用户管理
-│   │   └── system/                  # 系统模块接口
-│   │       ├── appSecret.js         # 应用密钥管理
-│   │       ├── dictionary.js        # 字典管理
-│   │       ├── dictionaryDetail.js  # 字典详情管理
-│   │       ├── setting.js           # 系统设置
-│   │       ├── storage.js           # 存储管理
-│   │       ├── tenant.js            # 租户管理
-│   │       └── timing.js            # 定时任务管理
-│   ├── assets/                      # 静态资源
-│   │   ├── *.png, *.jpg, *.svg     # 图片资源
-│   │   └── icons/                   # SVG 图标库
-│   ├── components/                  # 公共组件
-│   │   ├── BottomInfo/              # 版权信息组件
-│   │   ├── CRUD/                    # CRUD 组件
-│   │   ├── ECharts/                 # 图表组件
-│   │   │   └── index.vue            # ECharts 组件
-│   │   ├── Fullscreen/              # 全屏组件
-│   │   ├── IconSelect/              # 图标选择器
-│   │   │   └── index.vue            # 图标选择组件
-│   │   ├── Iframe/                  # 内嵌框架组件
-│   │   ├── MenuSearch/              # 菜单搜索组件
-│   │   │   └── index.vue            # 菜单搜索功能
-│   │   ├── SvgIcon/                 # SVG 图标组件
-│   ├── directive/                   # 自定义指令
-│   │   ├── index.js                 # 指令注册入口
-│   │   └── permission/              # 权限控制指令
-│   │       └── index.js             # 权限指令实现
-│   ├── enums/                       # 枚举定义
-│   │   ├── borderRadiusType.js      # 边框圆角类型
-│   │   ├── menuNavigation.js        # 菜单导航类型
-│   │   └── menuType.js              # 菜单类型枚举
-│   ├── hooks/                       # 组合式函数
-│   │   └── responsive.js            # 响应式监听 Hook
-│   ├── pinia/                       # 状态管理
-│   │   ├── index.js                 # Pinia 配置入口
-│   │   └── modules/                 # 状态模块
-│   │       ├── app.js               # 应用状态管理
-│   │       ├── dictionary.js        # 字典状态管理
-│   │       ├── router.js            # 路由状态管理
-│   │       └── user.js              # 用户状态管理
-│   ├── plugins/                     # 插件模块
-│   │   ├── index.js                 # 插件注册入口
-│   │   ├── icons.js                 # 图标插件配置
-│   │   ├── pathInfo.json            # 路径信息配置
-│   │   └── permission.js            # 权限插件配置
-│   ├── router/                      # 路由配置
-│   │   └── index.js                 # 路由主配置文件
-│   ├── style/                       # 样式文件
-│   │   ├── ape-volo-admin.scss      # 主题样式
-│   │   ├── main.scss                # 主样式文件
-│   │   ├── reset.scss               # 样式重置
-│   │   ├── transition.scss          # 过渡动画
-│   │   └── element/                 # Element Plus 样式定制
-│   ├── utils/                       # 工具函数
-│   │   ├── bus.js                   # 事件总线
-│   │   ├── converter.js             # 数据转换工具
-│   │   ├── dateTime.js              # 日期时间工具
-│   │   ├── dictionary.js            # 字典工具
-│   │   ├── downloadFile.js          # 文件下载工具
-│   │   ├── dynamicRouter.js         # 动态路由工具
-│   │   ├── index.js                 # 工具函数入口
-│   │   ├── jwtAuth.js               # JWT 认证工具
-│   │   ├── request.js               # HTTP 请求工具
-│   │   ├── rsaEncrypt.js            # RSA 加密工具
-│   │   ├── theme.js                 # 主题工具
-│   │   └── validate.js              # 数据验证工具
-│   ├── views/                       # 页面组件
-│   │   ├── routerHolder.vue         # 路由占位组件
-│   │   ├── dashboard/               # 仪表盘页面
-│   │   ├── error/                   # 错误页面
-│   │   ├── layout/                  # 布局组件
-│   │   ├── log/                     # 日志管理页面
-│   │   ├── login/                   # 登录页面
-│   │   ├── message/                 # 消息管理页面
-│   │   ├── onlineUser/              # 在线用户页面
-│   │   ├── permission/              # 权限管理页面
-│   │   ├── personalCenter/          # 个人中心页面
-│   │   ├── serverMonitor/           # 服务器监控页面
-│   │   └── system/                  # 系统管理页面
-│   ├── App.vue                      # 根组件
-│   ├── main.js                      # 应用入口文件
-│   ├── setting.js                   # 全局配置
-├── babel.config.js                  # Babel 配置
-├── componentNameMap.js              # 组件名映射
-├── eslint.config.mjs                # ESLint 配置
-├── index.html                       # HTML 入口模板
-├── jsconfig.json                    # JavaScript 配置
-├── package.json                     # 项目依赖配置
-├── postcss.config.js                # PostCSS 配置
-├── tailwind.config.js               # Tailwind CSS 配置
-├── vite.config.js                   # Vite 构建配置
-```
+### 项目特点
 
-## 🎯 核心功能
+- **权限控制**：角色、菜单、按钮权限与数据范围配置。
+- **会话认证**：JWT、令牌自动刷新、验证码与锁屏。
+- **界面配置**：导航布局、主题切换、多标签页与移动端适配。
+- **业务复用**：CRUD、分页、表单与导出组件。
 
-### 🔐 权限管理
+## 功能模块
 
-- **用户管理**: 用户增删改查、角色分配、状态管理
-- **角色管理**: 角色权限配置、菜单权限、API 权限
-- **菜单管理**: 动态菜单配置、路由权限、按钮权限
-- **部门管理**: 组织架构管理、部门层级关系
-- **职位管理**: 职位信息维护、权限关联
+以下业务功能需要配套后端提供接口支持。
 
-### 📊 系统管理
+| 模块       | 功能                                                 |
+| ---------- | ---------------------------------------------------- |
+| 权限与组织 | 用户、角色、菜单、部门、岗位、菜单授权、数据范围配置 |
+| 系统管理   | 字典与字典项、系统参数、应用密钥、文件上传与文件记录 |
+| 运维管理   | 定时任务配置、启停与执行、服务器监控                 |
+| 日志管理   | 操作日志、异常日志、任务执行日志                     |
+| 邮件管理   | 邮件账户、邮件模板、发送队列                         |
+| 会话管理   | 在线用户查询、导出与强制下线                         |
+| 个人中心   | 个人资料、头像、密码、邮箱与界面偏好                 |
 
-- **字典管理**: 系统字典配置、数据字典维护
-- **参数设置**: 系统参数配置、应用设置管理
-- **应用密钥**: API 密钥管理、安全配置
-- **租户管理**: 多租户支持、数据隔离
-- **定时任务**: 任务调度管理、执行状态监控
+## 技术栈
 
-### 📈 日志管理
+| 层次       | 主要技术                    |
+| ---------- | --------------------------- |
+| 前端框架   | Vue 3.5、JavaScript、Vite 6 |
+| 界面与样式 | Element Plus、UnoCSS、Sass  |
+| 状态与请求 | Pinia、Vue Router、Axios    |
+| 图表       | ECharts                     |
 
-- **操作日志**: 用户操作记录、行为追踪
-- **异常日志**: 系统异常监控、错误分析
-- **任务日志**: 定时任务执行日志、状态跟踪
+依赖与脚本维护在 [package.json](package.json)。
 
-### 💬 消息管理
+## 快速开始
 
-- **邮件管理**: 邮件发送、模板配置、发送记录
-- **站内消息**: 系统通知、用户消息、消息推送
+### 1. 环境要求
 
-### 🖥️ 系统监控
+| 工具    | 项目要求               |
+| ------- | ---------------------- |
+| Node.js | `^24.0.0` 或 `^26.0.0` |
+| pnpm    | 12，项目指定 `12.15.0` |
 
-- **在线用户**: 实时在线用户监控、强制下线
-- **服务器监控**: 系统资源监控、性能指标
-- **存储管理**: 文件存储、空间监控
+### 2. 启动前端
 
-## 🚀 快速开始
-
-### 环境要求
-
-- Node.js >= 16.0.0
-- npm >= 8.0.0 或 yarn >= 1.22.0
-
-### 安装依赖
+先按配套后端仓库的说明启动后端，再在本项目根目录执行：
 
 ```bash
-npm install
-# 或
-yarn install
+pnpm install
+pnpm run dev
 ```
 
-### 开发环境启动
+### 3. 访问系统
+
+| 服务     | 默认本地地址          |
+| -------- | --------------------- |
+| 管理界面 | http://localhost:9001 |
+| 后端服务 | http://localhost:9002 |
+
+前端端口与后端代理配置见 [.env.development](.env.development)。修改后端地址或端口时，需同步调整代理并重启前端服务。登录账号以所连接后端的配置为准。
+
+### 4. 构建与检查
 
 ```bash
-npm run dev
-# 或
-yarn dev
+pnpm build    # 生产构建，输出到 dist/
+pnpm preview  # 本地预览构建产物
+pnpm lint     # 代码规范检查
+pnpm test     # 回归测试
 ```
 
-### 生产环境构建
+## 目录结构
 
-```bash
-npm run build
-# 或
-yarn build
+```text
+ape-volo-web-js/
+  src/
+    api/                  接口封装与提交数据转换
+    views/                业务页面与页面私有组件
+      identity/           用户、角色、菜单
+      organization/       部门、岗位
+      system/job/         作业调度
+      log/jobLog/         作业日志
+    components/           公共组件与 CRUD
+    composables/          表格、表单与导出逻辑
+    services/
+      http/               请求处理
+      session/            登录、令牌刷新与会话管理
+      appearance/         主题、布局与界面偏好
+      navigation/         导航与标签页逻辑
+      feedback/           消息与错误反馈
+      storage/            本地存储
+      icons/              图标服务
+      logging/            客户端诊断与日志上报
+    pinia/                全局状态
+    router/               路由配置
+    directive/            权限等自定义指令
+    plugins/              插件与应用能力注册
+    assets/               图标等资源
+    style/                全局样式与设计变量
+    utils/                通用工具
+    main.js               应用入口
+  public/                 公共静态资源与密码加密公钥
+  tests/                  运行时回归测试
+  docs/                   开发文档
+  .env.development        开发端口与代理配置
+  package.json            依赖与开发脚本
+  vite.config.js          开发服务与构建配置
 ```
 
-## ⭐️ 支持作者
+页面负责业务交互，公共组件和 composable 复用表格、表单逻辑，API 层封装接口，service 层提供请求、会话等公共能力。具体开发约定见 [开发规范](docs/development.md)。
 
-如果这个项目对你有帮助，欢迎在 GitHub 或 Gitee 点个 Star：
+## 项目系列
 
-- GitHub：https://www.github.com/xianhc/ape-volo-admin
-- Gitee：https://www.gitee.com/xianhc/ape-volo-admin
+| 项目                                                                 | 定位                         | 核心技术                                               |
+| -------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------ |
+| [ape-volo-admin](https://github.com/xianhc/ape-volo-admin)           | 主仓库 · 完整前后端          | .NET 10 + SqlSugar / Vue 3 + TypeScript + Element Plus |
+| [ape-volo-admin-go](https://github.com/xianhc/ape-volo-admin-go)     | Go 后端                      | Go + Gin + GORM                                        |
+| [ape-volo-admin-java](https://github.com/xianhc/ape-volo-admin-java) | Java 后端                    | Java 25 + Spring Boot 4 + MyBatis-Plus                 |
+| **[ape-volo-web-js](https://github.com/xianhc/ape-volo-web-js)**     | **本仓库 · JavaScript 前端** | Vue 3 + JavaScript + Vite + Element Plus               |
 
-## 🙋 反馈交流
+## 交流与反馈
 
-### QQ 群：839263566
+[官方网站](https://www.apevolo.com) · [GitHub](https://github.com/xianhc/ape-volo-web-js) · [Gitee](https://gitee.com/xianhc/ape-volo-admin)
 
-| QQ 群 |
-| :---: |
+QQ 群：`839263566` · 微信：`apevolo`（备注“加群”）
 
-| <img width="150" src="https://www.apevolo.com/contact/wechat/20230723172503.jpg">
+## 版权与授权
 
-### 微信群
+**版权所有 © 2022–2026 xianhc。**
 
-| 微信 |
-| :--: |
+本项目采用 [Apache License 2.0](LICENSE)，使用、修改与分发请遵循许可证要求。
 
-| <img width="150" src="https://www.apevolo.com/contact/wechat/20230723172451.jpg">
+Apache License 2.0 允许在遵守许可证条款的前提下使用、修改、商业使用与再分发本项目。
 
-添加微信，备注"加群"
+再分发时须提供许可证副本；以源码形式分发衍生作品时，须保留与作品相关的原始版权及署名通知，修改过的文件须显著注明已作修改。完整义务以 [LICENSE](LICENSE) 为准。
 
-## 🤟 捐赠
-
-如果你觉得这个项目对你有帮助，你可以请作者喝杯饮料 🍹 <a href="https://www.apevolo.com/donate/" target="_blank" rel="noopener noreferrer">点我</a>
-
-## 📄 许可证
-
-请严格遵守 Apache 2.0 协议，并保留原作品声明。
-如需移除版权信息，请务必先[获取授权](https://www.apevolo.com/empower/) 。
-未经授权擅自移除版权信息的，我们将依法追究相关法律责任。
+商业合作咨询：[apevolo@gmail.com](mailto:apevolo@gmail.com)。

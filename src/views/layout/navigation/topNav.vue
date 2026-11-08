@@ -1,16 +1,16 @@
 <template>
   <div
-    class="ape-volo-content h-[calc(100%-4px)] mx-2 flex items-center w-[calc(100vw-600px)] overflow-auto"
     ref="menuContainer"
+    class="navigation-surface top-navigation h-full min-w-0 flex items-center"
   >
     <el-menu
+      ref="menuRef"
       :default-active="active"
       mode="horizontal"
       class="border-r-0 w-full flex gap-1 items-center box-border h-[calc(100%-1px)]"
       unique-opened
       :ellipsis="shouldEllipsis"
       @select="selectMenuItem"
-      ref="menuRef"
     >
       <template v-for="item in routerStore.asyncRouters[0].children">
         <menu-node
@@ -25,12 +25,20 @@
 </template>
 
 <script setup>
-  import menuNode from '@/views/layout/navigation/menuNode.vue'
-  import { ref, provide, watchEffect, onMounted, nextTick } from 'vue'
+  import menuNode from '@/views/layout/navigation/MenuNode.vue'
+  import {
+    ref,
+    provide,
+    watchEffect,
+    onMounted,
+    onBeforeUnmount,
+    nextTick
+  } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useRouterStore } from '@/pinia/modules/router'
   import { useAppStore } from '@/pinia'
   import { storeToRefs } from 'pinia'
+  import { navigateToMenu } from '@/services/navigation/menuNavigation'
   const appStore = useAppStore()
   const { device } = storeToRefs(appStore)
 
@@ -46,7 +54,9 @@
   const menuContainer = ref(null)
   const shouldEllipsis = ref(false)
 
-  // 计算是否需要启用省略功能
+  /**
+   * 计算是否需要启用省略功能
+   */
   const calculateEllipsis = async () => {
     await nextTick()
     if (!menuRef.value || !menuContainer.value) return
@@ -92,13 +102,16 @@
     window.addEventListener('resize', calculateEllipsis)
   })
 
+  onBeforeUnmount(() => {
+    window.removeEventListener('resize', calculateEllipsis)
+  })
+
+  /**
+   * 执行当前菜单项并按规则收起菜单。
+   * @param index 当前项目在集合中的位置。
+   */
   const selectMenuItem = (index) => {
-    if (index === route.name) return
-    if (index.indexOf('http://') > -1 || index.indexOf('https://') > -1) {
-      window.open(index, '_blank')
-      return
-    } else {
-      router.push({ name: index })
-    }
+    const menu = routerStore.routeMap[index]
+    if (menu) void navigateToMenu(router, menu)
   }
 </script>

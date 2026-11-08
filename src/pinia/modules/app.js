@@ -1,283 +1,319 @@
-import { defineStore } from 'pinia'
-import { ref, watchEffect, reactive, watch } from 'vue'
-import { setBodyPrimaryColor, setCornerSize } from '@/utils/theme'
-import { useDark, usePreferredDark } from '@vueuse/core'
-import { MenuNavigationType } from '@/enums/MenuNavigationType'
-import { BorderRadiusType } from '@/enums/BorderRadiusType'
-import { TransitionType } from '@/enums/TransitionType'
-import { ComponentSizeType } from '@/enums/ComponentSizeType'
-
+import { defineStore } from 'pinia';
+import { computed, ref, watchEffect, reactive, watch, nextTick } from 'vue';
+import { setBodyPrimaryColor, setCornerSize } from "../../services/appearance/themeRuntime.js";
+import { useColorMode, usePreferredDark } from '@vueuse/core';
+import { transitionTheme } from "../../services/appearance/themeTransition.js";
+import { hasDualSidebarNavigation, hasSidebarNavigation } from "../../enums/MenuNavigationType.js";
+import { writeStoredText } from "../../services/storage/appStorage.js";
+import { createDefaultPreferences, normalizePreferences, readPreferences } from "../../services/appearance/preferences.js";
 /**
  * 应用程序全局状态管理 Store
  * @description 管理应用的主题、布局、设备类型等全局配置
- * @returns {Object} 应用状态和相关方法
+ * @returns 应用状态和相关方法
  */
 export const useAppStore = defineStore('app', () => {
-  // 设备和界面状态
-  const device = ref('')
-  const drawerSize = ref('')
-  const operateMinWith = ref('240')
-
-  // 默认配置对象
-  const defaultConfig = {
-    weakness: false,
-    grey: false,
-    primaryColor: '#3b82f6',
-    showTabs: true,
-    darkMode: localStorage.getItem('vueuse-color-scheme') || 'auto',
-    layoutSideWidth: 256,
-    layoutSideCollapsedWidth: 80,
-    layoutSideItemHeight: 48,
-    showWatermark: true,
-    sideMode: MenuNavigationType.SidebarNav,
-    transitionType: TransitionType.Slide,
-    cornerSize: BorderRadiusType.Small,
-    componentSize: ComponentSizeType.Default
-  }
-
-  // 响应式配置对象
-  const config = reactive({ ...defaultConfig })
-
-  // 从本地存储加载用户偏好设置
-  const sysPreferences = JSON.parse(
-    localStorage.getItem('sysPreferences') || '{}'
-  )
-  if (sysPreferences) {
-    Object.keys(config).forEach((key) => {
-      if (sysPreferences[key] !== undefined) {
-        config[key] = sysPreferences[key]
-      }
-    })
-  }
-
-  // 监听配置变化并保存到本地存储
-  watch(
-    config,
-    (val) => {
-      localStorage.setItem('sysPreferences', JSON.stringify(val))
-    },
-    { deep: true }
-  )
-
-  // 暗黑模式管理
-  const isDark = useDark({
-    selector: 'html',
-    attribute: 'class',
-    valueDark: 'dark',
-    valueLight: 'light'
-  })
-
-  // 系统偏好的暗黑模式
-  const preferredDark = usePreferredDark()
-
-  /**
-   * 切换主题模式
-   * @param {boolean} darkMode - 是否为暗黑模式
-   * @returns {void}
-   */
-  const toggleTheme = (darkMode) => {
-    const sysPreferences = JSON.parse(
-      localStorage.getItem('sysPreferences') || '{}'
-    )
-    if (darkMode) {
-      sysPreferences.darkMode = 'dark'
-    } else {
-      sysPreferences.darkMode = 'light'
+    // 设备和界面状态
+    const device = ref('');
+    const sidebarManuallyCollapsed = ref(false);
+    const sidebarHovered = ref(false);
+    const sidebarKeyboardFocused = ref(false);
+    const drawerSize = ref('');
+    const operateMinWith = ref('240');
+    const workspaceMaximized = ref(false);
+    /**
+     * 切换工作区的最大化展示状态。
+     */
+    const toggleWorkspaceMaximized = () => {
+        workspaceMaximized.value = !workspaceMaximized.value;
+    };
+    // 默认配置对象
+    const defaultConfig = createDefaultPreferences(localStorage);
+    // 响应式配置对象
+    const config = reactive(readPreferences(localStorage, defaultConfig));
+    const sidebarPinned = computed({
+        /**
+         * 读取当前注入能力持有的数据或上下文。
+         * @returns 当前受控属性或配置的值。
+         */
+        get: () => config.sidebarPinned,
+        /**
+         * 通过注入的适配器写入当前数据。
+         * @param value 本次转换、校验或更新所接收的值。
+         */
+        set: (value) => {
+            config.sidebarPinned = value;
+        }
+    });
+    const sidebarAutoHide = computed(() => device.value === 'desktop' &&
+        !sidebarPinned.value &&
+        hasSidebarNavigation(config.sideMode));
+    const sidebarCollapsed = computed(() => sidebarAutoHide.value
+        ? !sidebarHovered.value && !sidebarKeyboardFocused.value
+        : sidebarManuallyCollapsed.value);
+    const sidebarReservedWidth = computed(() => {
+        const sideWidth = sidebarAutoHide.value || sidebarCollapsed.value
+            ? config.layoutSideCollapsedWidth
+            : config.layoutSideWidth;
+        const firstColumnWidth = device.value !== 'mobile' && hasDualSidebarNavigation(config.sideMode)
+            ? config.layoutSideCollapsedWidth
+            : 0;
+        return sideWidth + firstColumnWidth;
+    });
+    // 悬停只临时展开侧栏，正文和顶部区域始终保留收起后的宽度。
+    watch([device, () => config.sideMode], () => {
+        sidebarManuallyCollapsed.value = device.value === 'mobile';
+        sidebarHovered.value = false;
+        sidebarKeyboardFocused.value = false;
+    }, { immediate: true });
+    /**
+     * 切换侧栏折叠或固定展开状态。
+     */
+    const toggleSidebar = () => {
+        if (sidebarAutoHide.value) {
+            sidebarHovered.value = sidebarCollapsed.value;
+            sidebarKeyboardFocused.value = false;
+        }
+        else {
+            sidebarManuallyCollapsed.value = !sidebarManuallyCollapsed.value;
+        }
+    };
+    /**
+     * 切换侧栏折叠或固定展开状态。
+     */
+    const toggleSidebarPinned = () => {
+        sidebarManuallyCollapsed.value = sidebarCollapsed.value;
+        sidebarPinned.value = !sidebarPinned.value;
+        sidebarHovered.value = false;
+        sidebarKeyboardFocused.value = false;
+    };
+    /**
+     * 更新侧栏的焦点或指针悬浮状态。
+     * @param hovered 指针是否位于当前侧栏内。
+     */
+    const setSidebarHover = (hovered) => {
+        sidebarHovered.value = hovered;
+    };
+    /**
+     * 更新侧栏的焦点或指针悬浮状态。
+     * @param focused 焦点是否位于当前侧栏内。
+     */
+    const setSidebarFocus = (focused) => {
+        sidebarKeyboardFocused.value = focused;
+    };
+    // 暗黑模式管理
+    const colorMode = useColorMode({
+        selector: 'html',
+        attribute: 'class',
+        modes: { dark: 'dark', light: 'light' },
+        initialValue: config.darkMode,
+        emitAuto: true,
+        storageKey: null,
+        disableTransition: false
+    });
+    // 系统偏好的暗黑模式
+    const preferredDark = usePreferredDark();
+    const isDark = computed(() => config.darkMode === 'auto'
+        ? preferredDark.value
+        : config.darkMode === 'dark');
+    const themeTransitioning = ref(false);
+    /**
+     * 切换主题模式
+     * @param darkMode - 是否为暗黑模式
+     * @param [event] - 主题切换的触发事件
+     * @param event 浏览器存储变化事件或主题切换的触发事件。
+     */
+    const toggleTheme = (darkMode, event) => toggleDarkMode(darkMode ? 'dark' : 'light', event);
+    /**
+     * 切换弱视模式
+     * @param e - 是否启用弱视模式
+     */
+    const toggleWeakness = (e) => {
+        config.weakness = e;
+    };
+    /**
+     * 切换灰度模式
+     * @param e - 是否启用灰度模式
+     */
+    const toggleGrey = (e) => {
+        config.grey = e;
+    };
+    /**
+     * 切换主色调
+     * @param e - 主色调颜色值
+     */
+    const togglePrimaryColor = (e) => {
+        config.primaryColor = e;
+    };
+    /**
+     * 切换标签页显示
+     * @param e - 是否显示标签页
+     */
+    const toggleTabs = (e) => {
+        config.showTabs = e;
+    };
+    /**
+     * 切换设备类型
+     * @param e - 设备类型 ('mobile' | 'desktop')
+     */
+    const toggleDevice = (e) => {
+        if (e === 'mobile') {
+            drawerSize.value = '100%';
+            operateMinWith.value = '60';
+        }
+        else {
+            drawerSize.value = '800';
+            operateMinWith.value = '80';
+        }
+        device.value = e;
+    };
+    /**
+     * 切换暗黑模式配置
+     * @param mode - 暗黑模式设置 ('auto' | 'dark' | 'light')
+     * @param [event] - 主题切换的触发事件
+     * @param event 浏览器存储变化事件或主题切换的触发事件。
+     */
+    async function toggleDarkMode(mode, event) {
+        if (themeTransitioning.value)
+            return;
+        const dark = mode === 'auto' ? preferredDark.value : mode === 'dark';
+        if (dark === isDark.value) {
+            config.darkMode = mode;
+            return;
+        }
+        themeTransitioning.value = true;
+        try {
+            await transitionTheme(async () => {
+                config.darkMode = mode;
+                await nextTick();
+            }, dark, event);
+        }
+        finally {
+            themeTransitioning.value = false;
+        }
     }
-    localStorage.setItem('sysPreferences', JSON.stringify(sysPreferences))
-    isDark.value = darkMode
-  }
-
-  /**
-   * 切换弱视模式
-   * @param {boolean} e - 是否启用弱视模式
-   * @returns {void}
-   */
-  const toggleWeakness = (e) => {
-    config.weakness = e
-  }
-
-  /**
-   * 切换灰度模式
-   * @param {boolean} e - 是否启用灰度模式
-   * @returns {void}
-   */
-  const toggleGrey = (e) => {
-    config.grey = e
-  }
-
-  /**
-   * 切换主色调
-   * @param {string} e - 主色调颜色值
-   * @returns {void}
-   */
-  const togglePrimaryColor = (e) => {
-    config.primaryColor = e
-  }
-
-  /**
-   * 切换标签页显示
-   * @param {boolean} e - 是否显示标签页
-   * @returns {void}
-   */
-  const toggleTabs = (e) => {
-    config.showTabs = e
-  }
-
-  /**
-   * 切换设备类型
-   * @param {string} e - 设备类型 ('mobile' | 'desktop')
-   * @returns {void}
-   */
-  const toggleDevice = (e) => {
-    if (e === 'mobile') {
-      drawerSize.value = '100%'
-      operateMinWith.value = '60'
-    } else {
-      drawerSize.value = '800'
-      operateMinWith.value = '80'
-    }
-    device.value = e
-  }
-
-  /**
-   * 切换暗黑模式配置
-   * @param {string} e - 暗黑模式设置 ('auto' | 'dark' | 'light')
-   * @returns {void}
-   */
-  const toggleDarkMode = (e) => {
-    config.darkMode = e
-  }
-
-  // 监听暗黑模式配置变化
-  watchEffect(() => {
-    localStorage.setItem('vueuse-color-scheme', config.darkMode)
-    if (config.darkMode === 'auto') {
-      isDark.value = preferredDark.value
-      return
-    }
-    isDark.value = config.darkMode === 'dark'
-  })
-
-  /**
-   * 切换侧边栏宽度
-   * @param {number} e - 侧边栏宽度值
-   * @returns {void}
-   */
-  const toggleConfigSideWidth = (e) => {
-    config.layoutSideWidth = e
-  }
-
-  /**
-   * 切换侧边栏收缩宽度
-   * @param {number} e - 侧边栏收缩宽度值
-   * @returns {void}
-   */
-  const toggleConfigSideCollapsedWidth = (e) => {
-    config.layoutSideCollapsedWidth = e
-  }
-
-  /**
-   * 切换侧边栏项目高度
-   * @param {number} e - 侧边栏项目高度值
-   * @returns {void}
-   */
-  const toggleConfigSideItemHeight = (e) => {
-    config.layoutSideItemHeight = e
-  }
-
-  /**
-   * 切换水印显示
-   * @param {boolean} e - 是否显示水印
-   * @returns {void}
-   */
-  const toggleConfigWatermark = (e) => {
-    config.showWatermark = e
-  }
-
-  /**
-   * 切换侧边栏模式
-   * @param {string} e - 侧边栏模式
-   * @returns {void}
-   */
-  const toggleSideMode = (e) => {
-    config.sideMode = e
-  }
-
-  /**
-   * 切换过渡动画类型
-   * @param {string} e - 过渡动画类型
-   * @returns {void}
-   */
-  const toggleTransition = (e) => {
-    config.transitionType = e
-  }
-
-  /**
-   * 切换圆角大小
-   * @param {string} e - 圆角大小类型
-   * @returns {void}
-   */
-  const toggleCornerSize = (e) => {
-    config.cornerSize = e
-  }
-
-  /**
-   * 切换组件大小
-   * @param {string} e - 组件大小类型
-   * @returns {void}
-   */
-  const toggleComponentSize = (e) => {
-    config.componentSize = e
-  }
-
-  /**
-   * 重置配置到默认值
-   * @returns {void}
-   */
-  const resetConfig = () => {
-    for (let baseCoinfgKey in defaultConfig) {
-      config[baseCoinfgKey] = defaultConfig[baseCoinfgKey]
-    }
-  }
-
-  // 监听弱视和灰度模式变化，应用到DOM
-  watchEffect(() => {
-    document.documentElement.classList.toggle('html-weakenss', config.weakness)
-    document.documentElement.classList.toggle('html-grey', config.grey)
-  })
-
-  // 监听主色调变化，应用主题色
-  watchEffect(() => {
-    setBodyPrimaryColor(config.primaryColor, isDark.value ? 'dark' : 'light')
-  })
-
-  // 监听圆角大小变化，应用圆角样式
-  watchEffect(() => {
-    setCornerSize(config.cornerSize)
-  })
-
-  return {
-    isDark,
-    device,
-    drawerSize,
-    operateMinWith,
-    config,
-    toggleTheme,
-    toggleDevice,
-    toggleWeakness,
-    toggleGrey,
-    togglePrimaryColor,
-    toggleTabs,
-    toggleDarkMode,
-    toggleConfigSideWidth,
-    toggleConfigSideCollapsedWidth,
-    toggleConfigSideItemHeight,
-    toggleConfigWatermark,
-    toggleSideMode,
-    toggleTransition,
-    toggleCornerSize,
-    toggleComponentSize,
-    resetConfig
-  }
-})
+    // 监听暗黑模式配置变化
+    watchEffect(() => {
+        writeStoredText(localStorage, 'vueuse-color-scheme', config.darkMode);
+        colorMode.value = config.darkMode;
+    });
+    /**
+     * 切换侧边栏宽度
+     * @param e - 侧边栏宽度值
+     */
+    const toggleConfigSideWidth = (e) => {
+        config.layoutSideWidth = e;
+    };
+    /**
+     * 切换侧边栏收缩宽度
+     * @param e - 侧边栏收缩宽度值
+     */
+    const toggleConfigSideCollapsedWidth = (e) => {
+        config.layoutSideCollapsedWidth = e;
+    };
+    /**
+     * 切换侧边栏项目高度
+     * @param e - 侧边栏项目高度值
+     */
+    const toggleConfigSideItemHeight = (e) => {
+        config.layoutSideItemHeight = e;
+    };
+    /**
+     * 切换水印显示
+     * @param e - 是否显示水印
+     */
+    const toggleConfigWatermark = (e) => {
+        config.showWatermark = e;
+    };
+    /**
+     * 切换侧边栏模式
+     * @param e - 侧边栏模式
+     */
+    const toggleSideMode = (e) => {
+        config.sideMode = e;
+    };
+    /**
+     * 切换过渡动画类型
+     * @param e - 过渡动画类型
+     */
+    const toggleTransition = (e) => {
+        config.transitionType = e;
+    };
+    /**
+     * 切换圆角大小
+     * @param e - 圆角大小类型
+     */
+    const toggleCornerSize = (e) => {
+        config.cornerSize = e;
+    };
+    /**
+     * 切换组件尺寸
+     * @param e - 组件尺寸类型
+     */
+    const toggleComponentSize = (e) => {
+        config.componentSize = e;
+    };
+    /**
+     * 重置配置到默认值
+     */
+    const resetConfig = () => {
+        Object.assign(config, normalizePreferences(defaultConfig, defaultConfig));
+    };
+    /**
+     * 使用校验通过的配置替换当前编辑内容。
+     * @param value 本次转换、校验或更新所接收的值。
+     */
+    const replaceConfig = (value) => {
+        Object.assign(config, normalizePreferences(value, defaultConfig));
+    };
+    // 监听弱视和灰度模式变化，应用到DOM
+    watchEffect(() => {
+        document.documentElement.classList.toggle('html-weakenss', config.weakness);
+        document.documentElement.classList.toggle('html-grey', config.grey);
+    });
+    // 监听主色调变化，应用主题色
+    watchEffect(() => {
+        setBodyPrimaryColor(config.primaryColor, isDark.value ? 'dark' : 'light');
+    });
+    // 监听圆角大小变化，应用圆角样式
+    watchEffect(() => {
+        setCornerSize(config.cornerSize);
+    });
+    watchEffect(() => {
+        document.documentElement.style.setProperty('--app-font-size-base', `${config.fontSize}px`);
+    });
+    return {
+        isDark,
+        workspaceMaximized,
+        toggleWorkspaceMaximized,
+        themeTransitioning,
+        device,
+        sidebarCollapsed,
+        sidebarPinned,
+        sidebarAutoHide,
+        sidebarReservedWidth,
+        drawerSize,
+        operateMinWith,
+        config,
+        toggleTheme,
+        toggleDevice,
+        toggleSidebar,
+        toggleSidebarPinned,
+        setSidebarHover,
+        setSidebarFocus,
+        toggleWeakness,
+        toggleGrey,
+        togglePrimaryColor,
+        toggleTabs,
+        toggleDarkMode,
+        toggleConfigSideWidth,
+        toggleConfigSideCollapsedWidth,
+        toggleConfigSideItemHeight,
+        toggleConfigWatermark,
+        toggleSideMode,
+        toggleTransition,
+        toggleCornerSize,
+        toggleComponentSize,
+        resetConfig,
+        replaceConfig
+    };
+});

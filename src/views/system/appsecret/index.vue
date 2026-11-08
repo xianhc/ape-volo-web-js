@@ -1,107 +1,173 @@
 <template>
-  <div>
-    <div v-if="searchToggle" class="ape-volo-search">
-      <el-form :inline="true" :model="searchInfo">
-        <el-form-item label="应用Id">
-          <el-input
-            oninput="value=value.replace(/[^0-9]/g,'')"
-            v-model="searchInfo.appId"
-            placeholder="请输入"
-          />
-        </el-form-item>
-        <el-form-item label="应用名称">
-          <el-input v-model="searchInfo.appName" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="searchInfo.remark" placeholder="请输入" />
-        </el-form-item>
-        <DateRangePicker v-model="searchInfo" />
-        <SearchOpts />
-      </el-form>
-    </div>
-    <div v-else class="p-1 rounded"></div>
-    <div class="ape-volo-table">
-      <CrudOpts :perms="perms" />
-      <el-table
-        ref="tableRef"
-        :data="data"
-        v-loading="loading"
-        @selection-change="onSelectionChange"
-        @sort-change="onSortChange"
-        row-key="id"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="appId" label="应用Id" sortable="custom" />
-        <el-table-column prop="appName" label="应用名称" sortable="custom" />
-        <el-table-column
-          prop="appSecretKey"
-          label="应用密钥"
-          sortable="custom"
-        />
-        <el-table-column prop="remark" label="备注" />
-        <el-table-column prop="createTime" label="创建时间" sortable="custom" />
-        <el-table-column prop="createBy" label="创建人" sortable="custom" />
-        <el-table-column :min-width="appStore.operateMinWith" label="操作">
-          <template v-slot="scope">
-            <RowOpts :row="scope.row" :val="scope.row.name" :perms="perms" />
+  <div class="table-managed-view">
+    <TablePage
+      v-model:search-visible="searchToggle"
+      title="应用密钥"
+      :data="data"
+      :columns="tableColumns"
+      :loading="loading"
+      :error="crud.error.value"
+      row-key="id"
+      @selection-change="onSelectionChange"
+      @sort-change="onSortChange"
+      @refresh="refresh"
+    >
+      <template #search>
+        <SearchPanel
+          :model="searchInfo"
+          :loading="loading"
+          @query="refresh"
+          @reset="resetQuery"
+        >
+          <el-form-item label="应用Id">
+            <el-input
+              v-model="searchInfo.appId"
+              oninput="value = value.replace(/[^0-9]/g, '')"
+              placeholder="请输入"
+            />
+          </el-form-item>
+          <el-form-item label="应用名称">
+            <el-input v-model="searchInfo.appName" placeholder="请输入" />
+          </el-form-item>
+          <template #advanced>
+            <el-form-item label="备注">
+              <el-input v-model="searchInfo.remark" placeholder="请输入" />
+            </el-form-item>
+            <DateRangePicker v-model="searchInfo" />
           </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination v-bind="pagination" />
-    </div>
+        </SearchPanel>
+      </template>
+      <template #toolbar-left>
+        <CrudToolbarActions
+          :submitting="crud.submitting.value"
+          :exporting="crud.exporting.value"
+          :permissions="{
+            create: perms.add,
+            remove: perms.del,
+            export: perms.download
+          }"
+          :selected-count="crud.multipleSelection.value.length"
+          @create="crud.toAdd()"
+          @remove="crud.doBatchDelete()"
+          @export="crud.doExport()"
+        />
+      </template>
+      <template #column-actions="scope">
+        <RowActions>
+          <el-button
+            v-has-perm="perms.edit"
+            :icon="createIconifyIcon('lucide:pencil')"
+            type="primary"
+            link
+            @click="crud.toEdit(scope.row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-has-perm="perms.del"
+            :icon="createIconifyIcon('lucide:trash-2')"
+            type="danger"
+            link
+            @click="crud.doDelete(scope.row)"
+          >
+            删除
+          </el-button>
+        </RowActions>
+      </template>
+      <template #pagination>
+        <el-pagination v-bind="pagination" />
+      </template>
+    </TablePage>
     <!--表单渲染-->
     <formPanel />
   </div>
 </template>
 
 <script setup>
-  import { del, edit, get, add, download } from '@/api/system/appSecret'
-  import { ref } from 'vue'
-  import formPanel from './module/formPanel.vue'
-  import DateRangePicker from '@/components/CRUD/DateRangePicker.vue'
-  import { useCrud } from '@/components/Crud/UseCrud'
-  import CrudOpts from '@/components/CRUD/CrudOpts.vue'
-  import RowOpts from '@/components/CRUD/RowOpts.vue'
-  import SearchOpts from '@/components/CRUD/SearchOpts.vue'
-  import { useAppStore } from '@/pinia'
-
-  defineOptions({
+import { computed, ref } from 'vue';
+import { del, edit, get, add, download } from '@/api/system/appSecret';
+import TablePage from '@/components/crud/TablePage.vue';
+import CrudToolbarActions from '@/components/crud/CrudToolbarActions.vue';
+import RowActions from '@/components/crud/RowActions.vue';
+import DateRangePicker from '@/components/crud/DateRangePicker.vue';
+import SearchPanel from '@/components/crud/SearchPanel.vue';
+import { createIconifyIcon } from '@/components/icons';
+import { useCrud } from '@/components/crud/UseCrud';
+import formPanel from './module/formPanel.vue';
+defineOptions({
     name: 'AppSecret'
-  })
-
-  const perms = {
+});
+const perms = {
     add: ['sys:appSecret:add'],
     edit: ['sys:appSecret:edit'],
     del: ['sys:appSecret:del'],
     download: ['sys:appSecret:download']
-  }
-
-  const appStore = useAppStore()
-
-  const searchInfo = ref({})
-
-  const {
-    data,
-    searchToggle,
-    loading,
-    onSelectionChange,
-    pagination,
-    onSortChange
-  } = useCrud({
+};
+const searchInfo = ref({});
+const crud = useCrud({
     crudMethod: {
-      list: get,
-      del: del,
-      add: add,
-      edit: edit,
-      download: download
+        list: get,
+        del: del,
+        add: add,
+        edit: edit,
+        download: download
     },
     defaultForm: () => ({
-      id: 0,
-      appId: '',
-      appSecretKey: '',
-      appName: '',
-      remark: ''
+        id: '0',
+        appId: '',
+        appSecretKey: '',
+        appName: '',
+        remark: ''
     }),
     searchInfo
-  })
+});
+const { data, searchToggle, loading, refresh, resetQuery, onSelectionChange, pagination, onSortChange } = crud;
+const tableColumns = computed(() => [
+    { key: 'selection', label: '', type: 'selection', width: 55 },
+    {
+        key: 'appId',
+        label: '应用Id',
+        prop: 'appId',
+        sortable: 'custom',
+        minWidth: 160,
+        showOverflowTooltip: true
+    },
+    {
+        key: 'appName',
+        label: '应用名称',
+        prop: 'appName',
+        sortable: 'custom',
+        minWidth: 160
+    },
+    {
+        key: 'appSecretKey',
+        label: '应用密钥',
+        prop: 'appSecretKey',
+        sortable: 'custom',
+        minWidth: 260,
+        showOverflowTooltip: true
+    },
+    {
+        key: 'remark',
+        label: '备注',
+        prop: 'remark',
+        minWidth: 160,
+        showOverflowTooltip: true
+    },
+    {
+        key: 'creationTime',
+        label: '创建时间',
+        prop: 'creationTime',
+        sortable: 'custom',
+        minWidth: 170
+    },
+    {
+        key: 'creatorId',
+        label: '创建人ID',
+        prop: 'creatorId',
+        sortable: 'custom',
+        minWidth: 130
+    },
+    { key: 'actions', label: '操作', width: 180 }
+]);
 </script>

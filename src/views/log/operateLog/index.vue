@@ -1,79 +1,73 @@
 <template>
-  <div>
-    <div v-if="searchToggle" class="ape-volo-search">
-      <el-form :inline="true" :model="searchInfo">
-        <el-form-item label="操作人">
-          <el-input v-model="searchInfo.createBy" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="请求方式">
-          <el-select v-model="searchInfo.method" clearable placeholder="请选择">
-            <el-option
-              v-for="item in httpMethodOption"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="searchInfo.description" placeholder="请输入" />
-        </el-form-item>
-        <DateRangePicker v-model="searchInfo" />
-        <SearchOpts />
-      </el-form>
-    </div>
-    <div v-else class="p-1 rounded"></div>
-    <div class="ape-volo-table">
-      <el-table
-        ref="tableRef"
-        :data="data"
-        v-loading="loading"
-        @sort-change="onSortChange"
-        row-key="id"
-      >
-        <el-table-column prop="createBy" label="账号" sortable="custom" />
-        <el-table-column prop="createTime" label="创建时间" sortable="custom" />
-        <el-table-column
-          prop="executionDuration"
-          label="请求耗时"
-          sortable="custom"
+  <div class="table-managed-view">
+    <TablePage
+      v-model:search-visible="searchToggle"
+      title="操作日志"
+      :data="data"
+      :columns="tableColumns"
+      :error="tableError"
+      :loading="loading"
+      row-key="id"
+      @refresh="refresh"
+      @sort-change="onSortChange"
+    >
+      <template #search>
+        <SearchPanel
+          :model="searchInfo"
+          :loading="loading"
+          @query="search"
+          @reset="resetQuery"
         >
-          <template v-slot="scope">
-            <el-tag v-if="scope.row.executionDuration <= 200" type="success"
-              >{{ scope.row.executionDuration }}ms
-            </el-tag>
-            <el-tag v-else-if="scope.row.executionDuration <= 500"
-              >{{ scope.row.executionDuration }}ms
-            </el-tag>
-            <el-tag
-              v-else-if="scope.row.executionDuration <= 1000"
-              type="warning"
-              >{{ scope.row.executionDuration }}ms
-            </el-tag>
-            <el-tag v-else type="danger"
-              >{{ scope.row.executionDuration }}ms
-            </el-tag>
+          <el-form-item label="操作人">
+            <el-input v-model="searchInfo.username" placeholder="请输入" />
+          </el-form-item>
+          <el-form-item label="请求方式">
+            <el-select v-model="searchInfo.method" clearable placeholder="请选择">
+              <el-option
+                v-for="item in httpMethodOption"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <template #advanced>
+            <el-form-item label="描述">
+              <el-input v-model="searchInfo.description" placeholder="请输入" />
+            </el-form-item>
+            <DateRangePicker v-model="searchInfo" />
           </template>
-        </el-table-column>
-        <el-table-column prop="requestUrl" label="请求地址" />
-        <el-table-column prop="description" label="描述" sortable="custom" />
-        <el-table-column prop="method" label="请求方式" sortable="custom" />
-        <el-table-column prop="requestIp" label="Ip地址" sortable="custom" />
-        <el-table-column prop="ipAddress" label="归属地" sortable="custom" />
-        <el-table-column :min-width="appStore.operateMinWith" label="操作">
-          <template v-slot="scope">
-            <el-button
-              @click="showOperateLogDetail(scope.row)"
-              icon="view"
-              type="text"
-            >
-              详情
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination v-bind="pagination" />
-    </div>
+        </SearchPanel>
+      </template>
+      <template #column-executionDuration="scope">
+        <el-tag v-if="scope.row.executionDuration <= 200" type="success">
+          {{ scope.row.executionDuration }}ms
+        </el-tag>
+        <el-tag v-else-if="scope.row.executionDuration <= 500">
+          {{ scope.row.executionDuration }}ms
+        </el-tag>
+        <el-tag v-else-if="scope.row.executionDuration <= 1000" type="warning">
+          {{ scope.row.executionDuration }}ms
+        </el-tag>
+        <el-tag v-else type="danger">
+          {{ scope.row.executionDuration }}ms
+        </el-tag>
+      </template>
+      <template #column-actions="scope">
+        <RowActions>
+          <el-button
+            :icon="createIconifyIcon('lucide:eye')"
+            type="text"
+            @click="showOperateLogDetail(scope.row)"
+          >
+            详情
+          </el-button>
+        </RowActions>
+      </template>
+      <template #pagination>
+        <el-pagination v-bind="pagination" />
+      </template>
+    </TablePage>
     <el-drawer
       v-model="operateDetailDrawer"
       direction="rtl"
@@ -104,9 +98,9 @@
             style="grid-template-columns: 88px 1fr"
           >
             <span class="text-emerald-500 min-w-[88px]">操作人：</span
-            ><span class="break-all">{{ currentRow.createBy }}</span>
+            ><span class="break-all">{{ currentRow.creatorName }}</span>
             <span class="text-emerald-500 min-w-[88px]">请求时间：</span
-            ><span class="break-all">{{ currentRow.createTime }}</span>
+            ><span class="break-all">{{ currentRow.creationTime }}</span>
             <span class="text-emerald-500 min-w-[88px]">请求地址：</span
             ><span class="break-all">{{ currentRow.requestUrl }}</span>
             <span class="text-emerald-500 min-w-[88px]">请求方式：</span
@@ -143,52 +137,67 @@
 </template>
 
 <script setup>
-  import { get } from '@/api/log/operateLog'
-  import { ref } from 'vue'
-  import DateRangePicker from '@/components/CRUD/DateRangePicker.vue'
-  import { useCrud } from '@/components/Crud/UseCrud'
-  import SearchOpts from '@/components/CRUD/SearchOpts.vue'
-  import { useAppStore } from '@/pinia'
-  import { getDict } from '@/utils/dictionary'
-
-  defineOptions({
+import { computed, ref } from 'vue';
+import { get } from '@/api/log/operateLog';
+import TablePage from '@/components/crud/TablePage.vue';
+import SearchPanel from '@/components/crud/SearchPanel.vue';
+import RowActions from '@/components/crud/RowActions.vue';
+import DateRangePicker from '@/components/crud/DateRangePicker.vue';
+import { createIconifyIcon } from '@/components/icons';
+import { useDictionary } from '@/composables/useDictionary';
+import { useTableController } from '@/composables/useTableController';
+import { useAppStore } from '@/pinia';
+defineOptions({
     name: 'OperateLog'
-  })
-
-  const appStore = useAppStore()
-
-  const operateDetailDrawer = ref(false)
-  const currentRow = ref({})
-  const tableRef = ref()
-  const searchInfo = ref({})
-  const httpMethodOption = ref([])
-
-  const { data, searchToggle, loading, pagination, onSortChange } = useCrud({
-    crudMethod: { list: get },
-    defaultForm: () => ({}),
-    searchInfo
-  })
-
-  getDict('http_method')
-    .then((res) => {
-      httpMethodOption.value = res
-    })
-    .catch((err) => {
-      console.error('获取 http_method 失败:', err)
-    })
-
-  const showOperateLogDetail = (row) => {
-    operateDetailDrawer.value = true
-    currentRow.value = { ...row }
-  }
-
-  const formatJson = (value) => {
-    if (!value) return ''
+});
+const appStore = useAppStore();
+const operateDetailDrawer = ref(false);
+const currentRow = ref({});
+/**
+ * 创建初始筛选条件。
+ * @returns 与界面隔离的初始条件对象。
+ */
+const queryDefaults = () => ({});
+const searchInfo = ref(queryDefaults());
+const { options: httpMethodOption } = useDictionary('http_method');
+const { data, loading, error: tableError, searchVisible: searchToggle, pagination, search, refresh, resetQuery, onSortChange } = useTableController({
+    list: get,
+    query: searchInfo,
+    defaults: queryDefaults
+});
+/**
+ * 打开操作日志详情抽屉。
+ * @param row 当前行记录。
+ */
+const showOperateLogDetail = (row) => {
+    operateDetailDrawer.value = true;
+    currentRow.value = { ...row };
+};
+/**
+ * 将结构化内容转换为便于阅读的 JSON 文本。
+ * @param value 待格式化内容。
+ * @returns 缩进后的 JSON 文本；无内容时返回空文本。
+ */
+const formatJson = (value) => {
+    if (!value)
+        return '';
     try {
-      const obj = typeof value === 'string' ? JSON.parse(value) : value
-      return JSON.stringify(obj, null, 2)
-    } catch (err) {
-      return value
+        const obj = typeof value === 'string' ? JSON.parse(value) : value;
+        return JSON.stringify(obj, null, 2);
     }
-  }
+    catch {
+        return String(value);
+    }
+};
+const tableColumns = computed(() => [
+    { key: 'creatorName', label: '账号', prop: 'creatorName', sortable: 'custom', minWidth: 120 },
+    { key: 'creationTime', label: '创建时间', prop: 'creationTime', sortable: 'custom', minWidth: 170 },
+    { key: 'executionDuration', label: '请求耗时', prop: 'executionDuration', sortable: 'custom', width: 110 },
+    { key: 'requestUrl', label: '请求地址', prop: 'requestUrl', minWidth: 220, showOverflowTooltip: true },
+    { key: 'description', label: '描述', prop: 'description', sortable: 'custom', minWidth: 160, showOverflowTooltip: true },
+    { key: 'method', label: '请求方式', prop: 'method', sortable: 'custom', width: 110 },
+    { key: 'requestIp', label: 'Ip地址', prop: 'requestIp', sortable: 'custom', width: 140 },
+    { key: 'ipAddress', label: '归属地', prop: 'ipAddress', sortable: 'custom', width: 140 },
+    { key: 'actions', label: '操作', width: 100, align: 'center' }
+]);
 </script>

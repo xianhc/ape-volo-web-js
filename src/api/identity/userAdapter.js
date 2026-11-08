@@ -1,0 +1,37 @@
+export function normalizeUser(dto) {
+    const department = dto.dept ?? dto.department;
+    return {
+        id: String(dto.id), userName: dto.userName ?? dto.username ?? '', nickName: dto.nickName ?? dto.nickname ?? '',
+        genderCode: dto.genderCode ?? 0, phone: dto.phone ?? '', email: dto.email ?? '', headerImg: dto.headerImg ?? dto.avatar ?? '',
+        enabled: dto.enabled ?? true, isAdmin: dto.isAdmin, creationTime: dto.creationTime ?? '', creatorId: dto.creatorId,
+        lastModificationTime: dto.lastModificationTime, lastModifierId: dto.lastModifierId,
+        dept: { id: department?.id == null ? null : String(department.id), name: department?.name },
+        roles: (dto.roles ?? []).map(role => ({ ...role, id: String(role.id) })),
+        positions: (dto.positions ?? []).map(position => ({ ...position, id: String(position.id) }))
+    };
+}
+export const toUserQuery = (query) => ({
+    ...query,
+    departmentIdArray: Array.isArray(query.departmentIdArray) ? query.departmentIdArray.join(',') : query.departmentIdArray
+});
+export function createUserDraft(user) {
+    return {
+        id: user?.id ?? '0', userName: user?.userName ?? '', nickName: user?.nickName ?? '', genderCode: user?.genderCode ?? 1,
+        phone: user?.phone ?? '', email: user?.email ?? '', enabled: user?.enabled ?? true,
+        dept: { ...(user?.dept ?? { id: null }) },
+        roles: user?.roles.map(role => ({ ...role })) ?? [],
+        positions: user?.positions.map(position => ({ ...position })) ?? []
+    };
+}
+/** 只提交写入契约字段，保留长整型字符串和独立的关联集合。 */
+export function toUserRequest(draft) {
+    if (!draft.dept.id)
+        throw new Error('请选择部门');
+    return {
+        id: draft.id, userName: draft.userName, nickName: draft.nickName, genderCode: draft.genderCode,
+        phone: draft.phone, email: draft.email, enabled: draft.enabled,
+        dept: { id: draft.dept.id },
+        roles: draft.roles.map(role => ({ id: role.id, name: role.name })),
+        positions: draft.positions.map(position => ({ id: position.id, name: position.name }))
+    };
+}

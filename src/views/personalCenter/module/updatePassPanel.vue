@@ -43,78 +43,71 @@
   </el-dialog>
 </template>
 <script setup>
-  import { reactive, ref } from 'vue'
-  import { ElMessage } from 'element-plus'
-  import { editUserPass } from '@/api/permission/user'
-  import { useUserStore } from '@/pinia/modules/user'
-
-  const userStore = useUserStore()
-
-  const modifyPwdForm = ref(null)
-  const pwdModify = ref({})
-
-  const props = defineProps({
+import { reactive, ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import { editUserPass } from '@/api/identity/user';
+import { signOut } from '@/services/session/applicationSession';
+const modifyPwdForm = ref(null);
+const pwdModify = ref({
+    oldPass: '',
+    newPass: '',
+    confirmPass: ''
+});
+const props = defineProps({
     showUpdatePassPanel: {
-      type: Boolean,
-      required: true
+        type: Boolean,
+        required: true
     }
-  })
-
-  const emit = defineEmits(['update:showUpdatePassPanel'])
-
-  const handleCancel = () => {
-    emit('update:showUpdatePassPanel', false)
-    clearPassword()
-  }
-
-  const clearPasswordAndHide = () => {
-    emit('update:showUpdatePassPanel', false)
-    clearPassword()
-  }
-
-  const confirmPass = (rule, value, callback) => {
+});
+const emit = defineEmits(['update:showUpdatePassPanel']);
+const handleCancel = () => {
+    emit('update:showUpdatePassPanel', false);
+    clearPassword();
+};
+const clearPasswordAndHide = () => {
+    emit('update:showUpdatePassPanel', false);
+    clearPassword();
+};
+const confirmPass = (_rule, value, callback) => {
     if (value) {
-      if (pwdModify.value.newPass !== value) {
-        callback(new Error('两次输入的密码不一致'))
-      } else {
-        callback()
-      }
-    } else {
-      callback(new Error('请再次输入密码'))
+        if (pwdModify.value.newPass !== value) {
+            callback(new Error('两次输入的密码不一致'));
+        }
+        else {
+            callback();
+        }
     }
-  }
-
-  const rules = reactive({
+    else {
+        callback(new Error('请再次输入密码'));
+    }
+};
+const rules = reactive({
     oldPass: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
     newPass: [
-      { required: true, message: '请输入新密码', trigger: 'blur' },
-      { min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' }
+        { required: true, message: '请输入新密码', trigger: 'blur' },
+        { min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' }
     ],
     confirmPass: [{ required: true, validator: confirmPass, trigger: 'blur' }]
-  })
-
-  const clearPassword = () => {
-    pwdModify.value = {
-      oldPass: '',
-      newPass: '',
-      confirmPass: ''
-    }
-    modifyPwdForm.value?.clearValidate()
-  }
-
-  const doSubmit = async () => {
-    modifyPwdForm.value.validate((valid) => {
-      if (valid) {
-        editUserPass({
-          oldPass: pwdModify.value.oldPass,
-          newPass: pwdModify.value.newPass,
-          confirmPass: pwdModify.value.confirmPass
-        }).then(() => {
-          ElMessage.success('更新密码成功')
-          emit('update:showUpdatePassPanel', false)
-          userStore.LoginOut()
-        })
-      }
-    })
-  }
+});
+const clearPassword = () => {
+    pwdModify.value.oldPass = '';
+    pwdModify.value.newPass = '';
+    pwdModify.value.confirmPass = '';
+    modifyPwdForm.value?.clearValidate();
+};
+const doSubmit = async () => {
+    modifyPwdForm.value?.validate((valid) => {
+        if (valid) {
+            editUserPass({
+                oldPass: pwdModify.value.oldPass,
+                newPass: pwdModify.value.newPass,
+                confirmPass: pwdModify.value.confirmPass
+            }).then(() => {
+                ElMessage.success('更新密码成功');
+                emit('update:showUpdatePassPanel', false);
+                void signOut();
+            });
+        }
+    });
+};
 </script>

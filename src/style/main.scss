@@ -1,8 +1,22 @@
+@use '@fontsource-variable/noto-sans-sc/wght.css';
+@use './design-tokens.scss';
 @use './transition.scss';
+@use './icon-interactions.scss';
+@use './loading.scss';
 
 /** 全局SCSS变量 */
 :root {
   --ape-volo-radius: 0.25rem;
+}
+
+html,
+body {
+  background: var(--app-canvas);
+  color: var(--app-text-primary);
+  font-family: var(--app-font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .html-grey {
@@ -14,7 +28,7 @@
 }
 
 #nprogress .bar {
-  background: #29d !important;
+  background: var(--el-color-primary) !important;
 }
 
 ::-webkit-scrollbar {
@@ -30,4 +44,20 @@
   * {
     outline: none;
   }
+}
+
+.layout-content::-webkit-scrollbar,
+.table-page-search::-webkit-scrollbar,
+.table-page-pagination::-webkit-scrollbar,
+.table-column-settings__list::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+.layout-content::-webkit-scrollbar-thumb,
+.table-page-search::-webkit-scrollbar-thumb,
+.table-page-pagination::-webkit-scrollbar-thumb,
+.table-column-settings__list::-webkit-scrollbar-thumb {
+  background: var(--el-border-color-darker);
+  border-radius: 4px;
 }

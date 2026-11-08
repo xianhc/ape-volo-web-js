@@ -11,10 +11,9 @@
 </template>
 
 <script setup>
-  import { useRouterStore } from '@/pinia/modules/router'
-  const routerStore = useRouterStore()
-
-  defineOptions({
+import { useRouterStore } from '@/pinia/modules/router';
+const routerStore = useRouterStore();
+defineOptions({
     name: 'Message'
-  })
+});
 </script>

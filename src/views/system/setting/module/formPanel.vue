@@ -15,11 +15,11 @@
       </el-form-item>
       <el-form-item label="状态" prop="enabled">
         <el-radio
-          border
           v-for="item in props.statusTypeOption"
           :key="item.id"
           v-model="form.enabled"
-          :label="strToBool(item.value)"
+          border
+          :label="strToBool(String(item.value))"
         >
           {{ item.label }}
         </el-radio>
@@ -36,41 +36,29 @@
     <template #footer>
       <div>
         <el-button @click="closeDialog">取消</el-button>
-        <el-button type="primary" :loading="loading" @click="handleSave"
-          >保存</el-button
-        >
+        <el-button type="primary" :loading="loading" @click="handleSave">
+          保存
+        </el-button>
       </div>
     </template>
   </el-dialog>
 </template>
 <script setup>
-  import { ref, inject } from 'vue'
-  import { strToBool } from '@/utils/converter'
-
-  const props = defineProps({
-    statusTypeOption: {
-      type: Array,
-      required: true
-    }
-  })
-
-  // 注入crud
-  const crud = inject('crud')
-  const {
-    form,
-    dialogVisible,
-    loading,
-    closeDialog,
-    validateAndSave,
-    getFormTitle
-  } = crud
-
-  const settingForm = ref(null)
-  const rules = ref({
+import { useCrudForm } from '@/components/crud/crudContext';
+import { ref } from 'vue';
+import { strToBool } from '@/utils/converter';
+const props = defineProps({
+    statusTypeOption: { type: Array, required: true }
+});
+// 注入crud
+const crud = useCrudForm();
+const { form, dialogVisible, loading, closeDialog, validateAndSave, getFormTitle } = crud;
+const settingForm = ref();
+const rules = ref({
     name: [{ required: true, message: '请输入配置名称', trigger: 'blur' }],
     value: [{ required: true, message: '请输入数据值', trigger: 'blur' }],
     enabled: [{ required: true, message: '请选择状态', trigger: 'blur' }]
-  })
-  // 验证表单并保存
-  const handleSave = () => validateAndSave(settingForm.value)
+});
+// 验证表单并保存
+const handleSave = () => validateAndSave(settingForm.value);
 </script>

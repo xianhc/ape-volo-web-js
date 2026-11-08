@@ -10,9 +10,9 @@
         <span class="text-lg">{{ getFormTitle() }}</span>
         <div>
           <el-button @click="closeDialog">取消</el-button>
-          <el-button type="primary" :loading="loading" @click="handleSave"
-            >保存</el-button
-          >
+          <el-button type="primary" :loading="loading" @click="handleSave">
+            保存
+          </el-button>
         </div>
       </div>
     </template>
@@ -37,8 +37,8 @@
       </el-form-item>
       <el-form-item label="发送邮箱" prop="emailAccountId">
         <el-select
-          style="width: 100%"
           v-model="form.emailAccountId"
+          style="width: 100%"
           clearable
           filterable
           placeholder="请选择"
@@ -47,14 +47,14 @@
             v-for="item in props.emailAccountOption"
             :key="item.id"
             :label="item.displayName"
-            :value="Number(item.id)"
+            :value="item.id"
           />
         </el-select>
       </el-form-item>
       <el-form-item label="优先级" prop="priority">
         <el-select
-          style="width: 100%"
           v-model="form.priority"
+          style="width: 100%"
           clearable
           filterable
           placeholder="请选择"
@@ -82,43 +82,24 @@
   </el-drawer>
 </template>
 <script setup>
-  import { ref, inject } from 'vue'
-
-  const props = defineProps({
-    statusTypeOption: {
-      type: Array,
-      required: true
-    },
-    emailAccountOption: {
-      type: Array,
-      required: true
-    },
-    priorityTypeOption: {
-      type: Array,
-      required: true
-    }
-  })
-
-  // 注入crud
-  const crud = inject('crud')
-  const {
-    form,
-    dialogVisible,
-    loading,
-    closeDialog,
-    validateAndSave,
-    getFormTitle
-  } = crud
-
-  const emailQueuedForm = ref(null)
-  const rules = ref({
+import { useCrudForm } from '@/components/crud/crudContext';
+import { ref } from 'vue';
+const props = defineProps({
+    statusTypeOption: { type: Array, required: true },
+    emailAccountOption: { type: Array, required: true },
+    priorityTypeOption: { type: Array, required: true }
+});
+// 注入crud
+const crud = useCrudForm();
+const { form, dialogVisible, loading, closeDialog, validateAndSave, getFormTitle } = crud;
+const emailQueuedForm = ref();
+const rules = ref({
     subject: [{ required: true, message: '请输入邮件主题', trigger: 'blur' }],
     to: [{ required: true, message: '请输入收件邮箱', trigger: 'blur' }],
     body: [{ required: true, message: '请输入邮件内容', trigger: 'blur' }],
     emailAccountId: [{ required: true, message: '请选择', trigger: 'blur' }],
     priority: [{ required: true, message: '请选择', trigger: 'blur' }]
-  })
-
-  // 验证表单并保存
-  const handleSave = () => validateAndSave(emailQueuedForm.value)
+});
+// 验证表单并保存
+const handleSave = () => validateAndSave(emailQueuedForm.value);
 </script>

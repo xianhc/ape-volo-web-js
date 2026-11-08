@@ -1,12 +1,12 @@
 <template>
   <div
-    class="ape-volo-content relative h-full border-r shadow dark:shadow-gray-700"
-    :class="isCollapse ? '' : '  px-2'"
+    class="navigation-surface sidebar-column relative h-full flex flex-col min-h-0 box-border"
+    :class="{ 'is-collapsed': isCollapse }"
     :style="{
       width: layoutSideWidth + 'px'
     }"
   >
-    <el-scrollbar>
+    <el-scrollbar class="flex-1 min-h-0">
       <el-menu
         :collapse="isCollapse"
         :collapse-transition="false"
@@ -20,30 +20,24 @@
         </template>
       </el-menu>
     </el-scrollbar>
-    <div
-      class="absolute bottom-4 right-4 w-8 h-8 bg-gray-50 dark:bg-gray-800 flex items-center justify-center rounded cursor-pointer"
-      :class="isCollapse ? 'right-0 mx-auto' : 'right-4'"
-      @click="toggleCollapse"
-    >
-      <el-icon v-if="!isCollapse">
-        <DArrowLeft />
-      </el-icon>
-      <el-icon v-else>
-        <DArrowRight />
-      </el-icon>
-    </div>
+    <SidebarFooter />
   </div>
 </template>
 
 <script setup>
-  import menuNode from '@/views/layout/navigation/menuNode.vue'
+  /**
+   * 侧栏导航组件。
+   */
+  import SidebarFooter from './SidebarFooter.vue'
+  import menuNode from '@/views/layout/navigation/MenuNode.vue'
   import { ref, provide, watchEffect, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useRouterStore } from '@/pinia/modules/router'
   import { useAppStore } from '@/pinia'
   import { storeToRefs } from 'pinia'
+  import { navigateToMenu } from '@/services/navigation/menuNavigation'
   const appStore = useAppStore()
-  const { device, config } = storeToRefs(appStore)
+  const { config, sidebarCollapsed: isCollapse } = storeToRefs(appStore)
 
   defineOptions({
     name: 'SidebarNav'
@@ -51,7 +45,6 @@
   const route = useRoute()
   const router = useRouter()
   const routerStore = useRouterStore()
-  const isCollapse = ref(false)
   const active = ref('')
   const layoutSideWidth = computed(() => {
     if (!isCollapse.value) {
@@ -64,27 +57,14 @@
     active.value = route.name
   })
 
-  watchEffect(() => {
-    if (device.value === 'mobile') {
-      isCollapse.value = true
-    } else {
-      isCollapse.value = false
-    }
-  })
-
   provide('isCollapse', isCollapse)
 
+  /**
+   * 执行当前菜单项并按规则收起菜单。
+   * @param index 当前项目在集合中的位置。
+   */
   const selectMenuItem = (index) => {
-    if (index === route.name) return
-    if (index.indexOf('http://') > -1 || index.indexOf('https://') > -1) {
-      window.open(index, '_blank')
-      return
-    } else {
-      router.push({ name: index })
-    }
-  }
-
-  const toggleCollapse = () => {
-    isCollapse.value = !isCollapse.value
+    const menu = routerStore.routeMap[index]
+    if (menu) void navigateToMenu(router, menu)
   }
 </script>

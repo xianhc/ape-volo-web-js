@@ -1,0 +1,11 @@
+allowBuilds:
+  esbuild: true
+  '@parcel/watcher': true
+  vue-demi: true
+  core-js: false
+
+minimumReleaseAgeExclude:
+  - eslint@10.14.0
+
+overrides:
+  postcss-selector-parser: ^7.1.6

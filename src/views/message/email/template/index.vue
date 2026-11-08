@@ -1,93 +1,111 @@
 <template>
-  <div>
-    <div v-if="searchToggle" class="ape-volo-search">
-      <el-form :inline="true" :model="searchInfo">
-        <el-form-item label="邮箱">
-          <el-input v-model="searchInfo.email" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="显示名称">
-          <el-input v-model="searchInfo.displayName" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select
-            v-model="searchInfo.enabled"
-            clearable
-            placeholder="请选择"
-          >
-            <el-option
-              v-for="item in statusTypeOption"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <DateRangePicker v-model="searchInfo" />
-        <SearchOpts />
-      </el-form>
-    </div>
-    <div class="ape-volo-table">
-      <CrudOpts :perms="perms" />
-      <el-table
-        ref="tableRef"
-        :data="data"
-        v-loading="loading"
-        @selection-change="onSelectionChange"
-        @sort-change="onSortChange"
-        row-key="id"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="模板Id" sortable="custom" />
-        <el-table-column prop="name" label="模板名称" sortable="custom" />
-        <el-table-column prop="subject" label="邮件主题" sortable="custom" />
-        <el-table-column
-          prop="emailAccountId"
-          label="发送邮箱"
-          sortable="custom"
+  <div class="table-managed-view">
+    <TablePage
+      v-model:search-visible="searchToggle"
+      title="邮件模板"
+      :data="data"
+      :columns="tableColumns"
+      :loading="loading"
+      :error="crud.error.value"
+      row-key="id"
+      @selection-change="onSelectionChange"
+      @sort-change="onSortChange"
+      @refresh="refresh"
+    >
+      <template #search>
+        <SearchPanel
+          :model="searchInfo"
+          :loading="loading"
+          @query="refresh"
+          @reset="resetQuery"
         >
-          <template #default="scope">
-            <el-select
-              style="width: 200px"
-              v-model="scope.row.emailAccountId"
-              value-key="id"
-            >
-              <el-option
-                v-for="item in emailAccountOption"
-                :key="item.id"
-                :label="item.displayName"
-                :value="item.id"
-              />
-            </el-select>
+          <el-form-item label="邮箱">
+            <el-input v-model="searchInfo.email" placeholder="请输入" />
+          </el-form-item>
+          <el-form-item label="显示名称">
+            <el-input v-model="searchInfo.displayName" placeholder="请输入" />
+          </el-form-item>
+          <template #advanced>
+            <el-form-item label="状态">
+              <el-select
+                v-model="searchInfo.enabled"
+                clearable
+                placeholder="请选择"
+              >
+                <el-option
+                  v-for="item in statusTypeOption"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </el-form-item>
+            <DateRangePicker v-model="searchInfo" />
           </template>
-        </el-table-column>
-        <el-table-column
-          prop="bccEmailAddresses"
-          :show-overflow-tooltip="true"
-          min-width="200"
-          label="抄送邮箱"
-          sortable="custom"
+        </SearchPanel>
+      </template>
+      <template #toolbar-left>
+        <CrudToolbarActions
+          :submitting="crud.submitting.value"
+          :permissions="{
+            create: perms.add,
+            remove: perms.del
+          }"
+          :selected-count="crud.multipleSelection.value.length"
+          @create="crud.toAdd()"
+          @remove="crud.doBatchDelete()"
         />
-        <el-table-column prop="userName" label="状态" sortable="custom">
-          <template v-slot="scope">
-            <el-switch
-              v-model="scope.row.enabled"
-              inline-prompt
-              :loading="loadingMap[scope.row.id]"
-              :active-text="showDictLabel(statusTypeOption, 'true')"
-              :inactive-text="showDictLabel(statusTypeOption, 'false')"
-              @change="changeEnabled(scope.row, scope.row.enabled)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" sortable="custom" />
-        <el-table-column :min-width="appStore.operateMinWith" label="操作">
-          <template v-slot="scope">
-            <RowOpts :row="scope.row" :val="scope.row.name" :perms="perms" />
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination v-bind="pagination" />
-    </div>
+      </template>
+      <template #column-emailAccountId="scope">
+        <el-select
+          v-model="scope.row.emailAccountId"
+          style="width: 200px"
+          value-key="id"
+        >
+          <el-option
+            v-for="item in emailAccountOption"
+            :key="item.id"
+            :label="item.displayName"
+            :value="item.id"
+          />
+        </el-select>
+      </template>
+      <template #column-enabled="scope">
+        <el-switch
+          v-model="scope.row.enabled"
+          inline-prompt
+          :loading="loadingMap[scope.row.id]"
+          :active-text="showDictLabel(statusTypeOption, 'true')"
+          :inactive-text="showDictLabel(statusTypeOption, 'false')"
+          @change="changeEnabled(scope.row, scope.row.enabled)"
+        />
+      </template>
+      <template #column-actions="scope">
+        <RowActions>
+          <el-button
+            v-has-perm="perms.edit"
+            :icon="createIconifyIcon('lucide:pencil')"
+            type="primary"
+            link
+            @click="crud.toEdit(scope.row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-has-perm="perms.del"
+            :icon="createIconifyIcon('lucide:trash-2')"
+            type="danger"
+            link
+            @click="crud.doDelete(scope.row)"
+          >
+            删除
+          </el-button>
+        </RowActions>
+      </template>
+      <template #pagination>
+        <el-pagination v-bind="pagination" />
+      </template>
+    </TablePage>
     <!--表单渲染-->
     <formPanel
       :email-account-option="emailAccountOption"
@@ -97,96 +115,143 @@
 </template>
 
 <script setup>
+  import { computed, reactive, ref } from 'vue'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import { getAll } from '@/api/message/email/emailAccount'
   import { del, edit, get, add } from '@/api/message/email/emailTemplate'
-  import { reactive, ref } from 'vue'
+  import TablePage from '@/components/crud/TablePage.vue'
+  import CrudToolbarActions from '@/components/crud/CrudToolbarActions.vue'
+  import RowActions from '@/components/crud/RowActions.vue'
+  import DateRangePicker from '@/components/crud/DateRangePicker.vue'
+  import SearchPanel from '@/components/crud/SearchPanel.vue'
+  import { createIconifyIcon } from '@/components/icons'
+  import { useCrud } from '@/components/crud/UseCrud'
+  import { getDict, showDictLabel } from '@/composables/useDictionary'
   import formPanel from './module/formPanel.vue'
-  import DateRangePicker from '@/components/CRUD/DateRangePicker.vue'
-  import { useCrud } from '@/components/Crud/UseCrud'
-  import CrudOpts from '@/components/CRUD/CrudOpts.vue'
-  import RowOpts from '@/components/CRUD/RowOpts.vue'
-  import SearchOpts from '@/components/CRUD/SearchOpts.vue'
-  import { useAppStore } from '@/pinia'
-  import { getDict, showDictLabel } from '@/utils/dictionary'
-  import { ElMessage, ElMessageBox } from 'element-plus'
-
   defineOptions({
     name: 'EmailTemplate'
   })
-
   const perms = {
     add: ['sys:emailTemplate:add'],
     edit: ['sys:emailTemplate:edit'],
-    del: ['sys:emailTemplate:del'],
-    download: ['sys:emailTemplate:download']
+    del: ['sys:emailTemplate:del']
   }
-
-  const appStore = useAppStore()
-
   const searchInfo = ref({
     email: null,
     displayName: null,
     enabled: null
   })
-
   // 状态
   const statusTypeOption = ref([])
   const emailAccountOption = ref([])
-
+  const crud = useCrud({
+    crudMethod: {
+      list: get,
+      del: del,
+      add: add,
+      edit: edit
+    },
+    defaultForm: () => ({
+      id: '0',
+      name: undefined,
+      bccEmailAddresses: undefined,
+      subject: undefined,
+      body: '',
+      enabled: true,
+      emailAccountId: undefined
+    }),
+    searchInfo
+  })
   const {
     data,
     searchToggle,
     loading,
+    refresh,
+    resetQuery,
     onSelectionChange,
     pagination,
     onSortChange
-  } = useCrud({
-    crudMethod: { list: get, del: del, add: add, edit: edit },
-    defaultForm: () => ({
-      id: 0,
-      name: null,
-      bccEmailAddresses: null,
-      subject: null,
-      body: '',
-      enabled: true,
-      emailAccountId: null
-    }),
-    searchInfo
-  })
-
+  } = crud
+  const tableColumns = computed(() => [
+    { key: 'selection', label: '', type: 'selection', width: 55 },
+    {
+      key: 'id',
+      label: '模板Id',
+      prop: 'id',
+      sortable: 'custom',
+      width: 160,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'name',
+      label: '模板名称',
+      prop: 'name',
+      sortable: 'custom',
+      minWidth: 160
+    },
+    {
+      key: 'subject',
+      label: '邮件主题',
+      prop: 'subject',
+      sortable: 'custom',
+      minWidth: 200
+    },
+    {
+      key: 'emailAccountId',
+      label: '发送邮箱',
+      prop: 'emailAccountId',
+      sortable: 'custom',
+      minWidth: 220
+    },
+    {
+      key: 'bccEmailAddresses',
+      label: '抄送邮箱',
+      prop: 'bccEmailAddresses',
+      sortable: 'custom',
+      minWidth: 200,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'enabled',
+      label: '状态',
+      prop: 'enabled',
+      sortable: 'custom',
+      width: 110
+    },
+    {
+      key: 'creationTime',
+      label: '创建时间',
+      prop: 'creationTime',
+      sortable: 'custom',
+      minWidth: 170
+    },
+    { key: 'actions', label: '操作', width: 180 }
+  ])
   const init = async () => {
     statusTypeOption.value = await getDict('status_type')
-
     const res = await getAll()
     emailAccountOption.value = res.data
   }
-
   init()
-
   const loadingMap = reactive({})
   const changeEnabled = async (row, val) => {
     loadingMap[row.id] = true
-    ElMessageBox.confirm(
-      `你要将${row.name}的状态切换为【${val ? '启用' : '禁用'}】吗？`,
-      '切换状态',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-      .then(async () => {
-        await edit(row).then(() => {
-          ElMessage({
-            type: 'success',
-            message: '修改成功'
-          })
-        })
-        loadingMap[row.id] = false
-      })
-      .catch(() => {
-        row.enabled = !row.enabled
-        loadingMap[row.id] = false
-      })
+    try {
+      await ElMessageBox.confirm(
+        `你要将${row.name}的状态切换为【${val ? '启用' : '禁用'}】吗？`,
+        '切换状态',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+      await edit(row)
+      ElMessage.success('修改成功')
+    } catch {
+      row.enabled = !val
+    } finally {
+      loadingMap[row.id] = false
+    }
   }
 </script>

@@ -1,0 +1,30 @@
+import { createRequire } from 'node:module';
+/** 版本号唯一来源是 package.json，避免横幅与包版本各写一处后不一致。 */
+const { version } = createRequire(import.meta.url)('./package.json');
+const getWelcomeMessage = () => {
+    const frontendPort = process.env.VITE_CLI_PORT || '9001';
+    const backendPort = process.env.VITE_SERVER_PORT || '9002';
+    const basePath = process.env.VITE_BASE_PATH || 'http://localhost';
+    return `
+欢迎使用《ape-volo-admin》中后台权限管理系统
+当前版本：v${version}
+加群方式：微信号：apevolo<备注'加群'>   QQ群：839263566
+官方网站：https://www.apevolo.com
+接口文档地址：${basePath}:${backendPort}/swagger/api/index.html
+前端运行地址：http://localhost:${frontendPort}
+☕ 请作者喝杯咖啡，支持项目持续维护：https://www.apevolo.com/donate
++---------------------------------- 版权声明 ----------------------------------+
+|              ** 版权所有 © 2022–2026 xianhc。保留所有权利。 **               |
+|    ** 开源许可：Apache-2.0，详见 LICENSE；联系邮箱：apevolo@gmail.com **     |
++------------------------------------------------------------------------------+
+`;
+};
+const greenText = (text) => `\x1b[32m${text}\x1b[0m`;
+export const printWelcomeOnce = () => {
+    if (!process.env.__APE_WELCOME_PRINTED) {
+        setTimeout(() => {
+            console.log(greenText(getWelcomeMessage()));
+            process.env.__APE_WELCOME_PRINTED = '1';
+        }, 100);
+    }
+};

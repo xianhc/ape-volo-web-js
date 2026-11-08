@@ -1,250 +1,190 @@
 <template>
-  <div class="ape-theme-font" :style="{ '--theme-primary': modelValue }">
-    <div class="ape-theme-card-bg p-4">
-      <div class="mb-4">
-        <p
-          class="text-base font-semibold text-gray-700 dark:text-gray-300 mb-4"
-        >
-          推荐配色
-        </p>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          选择一组预设主色，快速切换界面视觉风格。
-        </p>
-        <div class="grid grid-cols-3 gap-4">
-          <div
-            v-for="colorItem in presetColors"
-            :key="colorItem.value"
-            class="theme-color-option flex items-center gap-4 p-2 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 cursor-pointer transition-all duration-150 ease-in-out hover:transform hover:-translate-y-1 hover:shadow-lg"
-            :class="{
-              'is-selected transform -translate-y-1 shadow-lg':
-                modelValue === colorItem.value
-            }"
-            @click="handleColorChange(colorItem.value)"
-          >
-            <div
-              class="theme-color-swatch relative w-10 h-10 border border-gray-300 dark:border-gray-500 flex-shrink-0 shadow-sm"
-              :style="{ backgroundColor: colorItem.value }"
-            >
-              <div
-                v-if="modelValue === colorItem.value"
-                class="absolute inset-0 flex items-center justify-center text-white text-base"
-                style="text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3)"
-              >
-                <el-icon>
-                  <Check />
-                </el-icon>
-              </div>
-            </div>
-            <div class="min-w-0 flex-1">
-              <span class="block text-sm font-semibold ape-theme-text-main">{{
-                colorItem.label
-              }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="custom-theme-color-row p-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 mb-6 shadow-sm"
+  <div class="theme-color-panel">
+    <div
+      class="theme-color-options"
+      role="radiogroup"
+      :aria-label="'推荐配色'"
+    >
+      <button
+        v-for="colorItem in presetColors"
+        :key="colorItem.value"
+        type="button"
+        class="theme-color-option preference-choice"
+        :class="{ 'is-selected': modelValue.toLowerCase() === colorItem.value.toLowerCase() }"
+        role="radio"
+        :aria-checked="modelValue.toLowerCase() === colorItem.value.toLowerCase()"
+        :aria-label="colorItem.label"
+        :title="colorItem.label"
+        @click="handleColorChange(colorItem.value)"
       >
-        <div class="custom-theme-color-info min-w-0">
-          <h4
-            class="custom-theme-color-title text-base font-semibold ape-theme-text-main"
+        <span class="theme-color-face preference-preview-frame">
+          <span
+            class="theme-color-swatch"
+            :style="{ backgroundColor: colorItem.value }"
           >
-            自定义主色
-          </h4>
-          <div class="custom-theme-color-meta">
-            <div
-              class="theme-color-chip w-5 h-5 border border-gray-300 dark:border-gray-500 shadow-sm flex-shrink-0"
-              :style="{ backgroundColor: modelValue }"
-            ></div>
-            <code
-              class="custom-theme-color-code text-sm font-mono bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1.5 border border-gray-200 dark:border-gray-500"
-            >
-              {{ modelValue }}
-            </code>
-          </div>
-        </div>
+            <AppIcon
+              v-if="modelValue.toLowerCase() === colorItem.value.toLowerCase()"
+              icon="lucide:check"
+              :style="{ color: checkColor(colorItem.value) }"
+            />
+          </span>
+        </span>
+        <span class="theme-color-label">{{ colorItem.label }}</span>
+      </button>
+      <div class="custom-color-option" :class="{ 'is-selected': isCustomColor }">
         <el-color-picker
           v-model="customColor"
-          size="large"
           :predefine="presetColors.map((item) => item.value)"
+          :aria-label="'自定义主色'"
           class="custom-color-picker"
           @change="handleCustomColorChange"
         />
+        <span class="theme-color-label">{{ '自定义主色' }}</span>
       </div>
     </div>
+    <code class="custom-theme-color-code">{{ modelValue }}</code>
   </div>
 </template>
 
 <script setup>
-  import { ref, watch } from 'vue'
-  import { Check } from '@element-plus/icons-vue'
-
-  defineOptions({
+/**
+ * 主题色选择组件。
+ */
+import AppIcon from '@/components/AppIcon.vue';
+import { computed, ref, watch } from 'vue';
+import { DEFAULT_PRIMARY_COLOR, getContrastRatio } from '@/services/appearance/themeRuntime';
+import { THEME_COLOR_PRESETS } from '@/services/appearance/themePalette';
+defineOptions({
     name: 'ThemeColorPicker'
-  })
-
-  const props = defineProps({
-    modelValue: {
-      type: String,
-      default: '#3b82f6'
-    }
-  })
-
-  const emit = defineEmits(['update:modelValue'])
-
-  const customColor = ref(props.modelValue)
-
-  const presetColors = [
-    { value: '#3b82f6', label: '默认' },
-    { value: '#8F5FE8', label: '紫罗兰' },
-    { value: '#FFB3DE', label: '樱花粉' },
-    { value: '#EBEB2F', label: '柠檬黄' },
-    { value: '#A8F5A2', label: '浅绿色' },
-    { value: '#bfc1c2', label: '锌色灰' },
-    { value: '#28a745', label: '深绿色' },
-    { value: '#1e40af', label: '深蓝色' },
-    { value: '#FFA500', label: '橙黄色' },
-    { value: '#EB2F96', label: '玫瑰红' },
-    { value: '#888888', label: '中性色' },
-    { value: '#708090', label: '石板灰' },
-    { value: '#FF6347', label: '番茄红' },
-    { value: '#00CED1', label: '宝石蓝' },
-    { value: '#FFD700', label: '金色' }
-  ]
-
-  const handleColorChange = (color) => {
-    customColor.value = color
-    emit('update:modelValue', color)
-  }
-
-  const handleCustomColorChange = (color) => {
+});
+const props = defineProps({
+    modelValue: { type: String, required: false, default: DEFAULT_PRIMARY_COLOR }
+});
+const emit = defineEmits(["update:modelValue"]);
+const customColor = ref(props.modelValue);
+/** 与登录页共用的推荐主色，标签随当前语言更新。 */
+const presetColors = computed(() => THEME_COLOR_PRESETS.map(preset => ({
+    value: preset.value,
+    label: preset.label
+})));
+/** 未命中共用色板的主色由自定义入口继续展示，不限制为预设值。 */
+const isCustomColor = computed(() => !presetColors.value.some(item => item.value.toLowerCase() === props.modelValue.toLowerCase()));
+/**
+ * 根据背景色对比度选择可读的前景文字颜色。
+ * @param color 待校验或应用的颜色值。
+ * @returns 与给定背景色具有足够对比度的白色或深色前景。
+ */
+const checkColor = (color) => getContrastRatio('#FFFFFF', color) >= 3 ? '#FFFFFF' : '#1F292E';
+/**
+ * 将选中的颜色或徽标类型写入当前配置。
+ * @param color 待校验或应用的颜色值。
+ */
+const handleColorChange = (color) => {
+    customColor.value = color;
+    emit('update:modelValue', color);
+};
+/**
+ * 将选中的颜色或徽标类型写入当前配置。
+ * @param color 待校验或应用的颜色值。
+ */
+const handleCustomColorChange = (color) => {
     if (color) {
-      emit('update:modelValue', color)
+        emit('update:modelValue', color);
     }
-  }
-
-  watch(
-    () => props.modelValue,
-    (newValue) => {
-      customColor.value = newValue
-    }
-  )
+};
+watch(() => props.modelValue, (newValue) => {
+    customColor.value = newValue;
+});
 </script>
 
 <style scoped>
-  .custom-theme-color-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    border-radius: calc(var(--ape-volo-radius));
+  .theme-color-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 18px;
   }
-
-  .custom-theme-color-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    min-width: 0;
-  }
-
-  .custom-theme-color-title {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-
-  .custom-theme-color-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 0;
-  }
-
-  .custom-theme-color-code {
-    white-space: nowrap;
-    border-radius: calc(var(--ape-volo-radius));
-  }
-
   .theme-color-option {
-    position: relative;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease,
-      transform 0.18s ease;
-    border-radius: calc(var(--ape-volo-radius));
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--app-text-secondary);
+    font: inherit;
+    cursor: pointer;
   }
-
+  .theme-color-face {
+    display: grid;
+    place-items: center;
+    height: 58px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--preference-radius, 10px);
+    transition: border-color 180ms, box-shadow 180ms;
+  }
+  .theme-color-option:hover .theme-color-face {
+    border-color: var(--el-color-primary);
+  }
+  .theme-color-option.is-selected .theme-color-face {
+    border-color: var(--el-color-primary);
+    box-shadow: 0 0 0 1px var(--el-color-primary);
+  }
+  .theme-color-option:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 4px;
+    border-radius: 10px;
+  }
   .theme-color-swatch {
-    border-radius: calc(var(--ape-volo-radius));
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
+    color: white;
+    transition: transform 200ms;
   }
-
-  .theme-color-chip {
-    border-radius: calc(var(--ape-volo-radius));
+  .theme-color-option:hover .theme-color-swatch {
+    transform: scale(1.12);
   }
-
-  .theme-color-option:not(.is-selected):hover {
-    border-color: var(--theme-primary) !important;
-    box-shadow: inset 0 0 0 1px var(--theme-primary),
-      0 10px 24px rgba(15, 23, 42, 0.08);
-    transform: translateY(-2px);
+  .theme-color-label {
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
   }
-
-  .theme-color-option.is-selected {
-    border-color: var(--theme-primary) !important;
-    box-shadow: inset 0 0 0 1px var(--theme-primary),
-      0 10px 24px rgba(15, 23, 42, 0.08);
-    transform: translateY(-2px);
+  .custom-color-option {
+    display: grid;
+    gap: 8px;
+    color: var(--app-text-secondary);
   }
-
-  .dark .theme-color-option.is-selected {
-    box-shadow: inset 0 0 0 1px var(--theme-primary),
-      0 10px 24px rgba(0, 0, 0, 0.28);
+  .custom-color-option :deep(.custom-color-picker) {
+    width: 100%;
+    height: 58px;
   }
-
-  .dark .theme-color-option:not(.is-selected):hover {
-    box-shadow: inset 0 0 0 1px var(--theme-primary),
-      0 10px 24px rgba(0, 0, 0, 0.22);
+  .custom-color-option :deep(.el-color-picker__trigger) {
+    width: 100%;
+    height: 58px;
+    border-color: var(--app-border);
+    border-radius: var(--preference-radius, 10px);
+    padding: 15px;
   }
-
-  .custom-color-picker {
-    ::v-deep(.el-color-picker__trigger) {
-      border: 1px solid #e5e7eb;
-      border-radius: calc(var(--ape-volo-radius));
-      transition: all 150ms ease-in-out;
-
-      &:hover {
-        border-color: var(--theme-primary);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-    }
+  .custom-color-option :deep(.el-color-picker__color) {
+    width: 26px;
+    margin: auto;
+    border: 0;
+    border-radius: 7px;
+    overflow: hidden;
   }
-
-  .dark .custom-color-picker {
-    ::v-deep(.el-color-picker__trigger) {
-      border-color: #4b5563;
-
-      &:hover {
-        border-color: var(--theme-primary);
-      }
-    }
+  .custom-color-option.is-selected :deep(.el-color-picker__trigger) {
+    border-color: var(--el-color-primary);
+    box-shadow: 0 0 0 1px var(--el-color-primary);
   }
-
-  @media (max-width: 640px) {
-    .custom-theme-color-row {
-      align-items: flex-start;
-      flex-direction: column;
-    }
-
-    .custom-theme-color-info {
-      width: 100%;
-      align-items: flex-start;
-      flex-direction: column;
-      gap: 0.625rem;
-    }
-
-    .custom-theme-color-meta {
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
+  .custom-theme-color-code {
+    display: block;
+    margin-top: 12px;
+    color: var(--app-text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    text-align: right;
   }
 </style>

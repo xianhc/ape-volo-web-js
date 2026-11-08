@@ -1,124 +1,195 @@
 <template>
-  <div>
-    <div v-if="searchToggle" class="ape-volo-search">
-      <el-form :inline="true" :model="searchInfo">
-        <el-form-item label="邮箱">
-          <el-input v-model="searchInfo.email" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="显示名称">
-          <el-input v-model="searchInfo.displayName" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="用户名称">
-          <el-input v-model="searchInfo.userName" placeholder="请输入" />
-        </el-form-item>
-        <DateRangePicker v-model="searchInfo" />
-        <SearchOpts />
-      </el-form>
-    </div>
-    <div v-else class="p-1 rounded"></div>
-    <div class="ape-volo-table">
-      <CrudOpts :perms="perms" />
-      <el-table
-        ref="tableRef"
-        :data="data"
-        v-loading="loading"
-        @selection-change="onSelectionChange"
-        @sort-change="onSortChange"
-        row-key="id"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="账号Id" sorttable="custom" />
-        <el-table-column prop="email" label="邮箱" sortable="custom" />
-        <el-table-column
-          prop="displayName"
-          label="显示名称"
-          sortable="custom"
-        />
-        <el-table-column prop="host" label="主机" sortable="custom" />
-        <el-table-column prop="port" label="端口" sortable="custom" />
-        <el-table-column prop="userName" label="用户名称" sortable="custom" />
-        <el-table-column prop="password" label="密码" />
-        <el-table-column prop="enableSsl" label="Ssl" sortable="custom">
-          <template v-slot="scope">
-            <el-switch v-model="scope.row.enableSsl" :disabled="true" />
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="useDefaultCredentials"
-          label="系统凭据"
-          sortable="custom"
+  <div class="table-managed-view">
+    <TablePage
+      v-model:search-visible="searchToggle"
+      title="邮箱账户"
+      :data="data"
+      :columns="tableColumns"
+      :loading="loading"
+      :error="crud.error.value"
+      row-key="id"
+      @selection-change="onSelectionChange"
+      @sort-change="onSortChange"
+      @refresh="refresh"
+    >
+      <template #search>
+        <SearchPanel
+          :model="searchInfo"
+          :loading="loading"
+          @query="refresh"
+          @reset="resetQuery"
         >
-          <template v-slot="scope">
-            <el-switch
-              v-model="scope.row.useDefaultCredentials"
-              :disabled="true"
-            />
+          <el-form-item label="邮箱">
+            <el-input v-model="searchInfo.email" placeholder="请输入" />
+          </el-form-item>
+          <el-form-item label="显示名称">
+            <el-input v-model="searchInfo.displayName" placeholder="请输入" />
+          </el-form-item>
+          <template #advanced>
+            <el-form-item label="用户名称">
+              <el-input v-model="searchInfo.userName" placeholder="请输入" />
+            </el-form-item>
+            <DateRangePicker v-model="searchInfo" />
           </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" sortable="custom" />
-        <el-table-column :min-width="appStore.operateMinWith" label="操作">
-          <template v-slot="scope">
-            <RowOpts :row="scope.row" :val="scope.row.name" :perms="perms" />
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination v-bind="pagination" />
-    </div>
+        </SearchPanel>
+      </template>
+      <template #toolbar-left>
+        <CrudToolbarActions
+          :submitting="crud.submitting.value"
+          :exporting="crud.exporting.value"
+          :permissions="{
+            create: perms.add,
+            remove: perms.del,
+            export: perms.download
+          }"
+          :selected-count="crud.multipleSelection.value.length"
+          @create="crud.toAdd()"
+          @remove="crud.doBatchDelete()"
+        />
+      </template>
+      <template #column-enableSsl="scope">
+        <el-switch v-model="scope.row.enableSsl" :disabled="true" />
+      </template>
+      <template #column-useDefaultCredentials="scope">
+        <el-switch v-model="scope.row.useDefaultCredentials" :disabled="true" />
+      </template>
+      <template #column-actions="scope">
+        <RowActions>
+          <el-button
+            v-has-perm="perms.edit"
+            :icon="createIconifyIcon('lucide:pencil')"
+            type="primary"
+            link
+            @click="crud.toEdit(scope.row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-has-perm="perms.del"
+            :icon="createIconifyIcon('lucide:trash-2')"
+            type="danger"
+            link
+            @click="crud.doDelete(scope.row)"
+          >
+            删除
+          </el-button>
+        </RowActions>
+      </template>
+      <template #pagination>
+        <el-pagination v-bind="pagination" />
+      </template>
+    </TablePage>
     <!--表单渲染-->
     <formPanel />
   </div>
 </template>
 
 <script setup>
-  import { del, edit, get, add } from '@/api/message/email/emailAccount'
-  import { ref } from 'vue'
-  import formPanel from './module/formPanel.vue'
-  import DateRangePicker from '@/components/CRUD/DateRangePicker.vue'
-  import { useCrud } from '@/components/Crud/UseCrud'
-  import CrudOpts from '@/components/CRUD/CrudOpts.vue'
-  import RowOpts from '@/components/CRUD/RowOpts.vue'
-  import SearchOpts from '@/components/CRUD/SearchOpts.vue'
-  import { useAppStore } from '@/pinia'
-
-  defineOptions({
+import { computed, ref } from 'vue';
+import { del, edit, get, add } from '@/api/message/email/emailAccount';
+import TablePage from '@/components/crud/TablePage.vue';
+import CrudToolbarActions from '@/components/crud/CrudToolbarActions.vue';
+import RowActions from '@/components/crud/RowActions.vue';
+import DateRangePicker from '@/components/crud/DateRangePicker.vue';
+import SearchPanel from '@/components/crud/SearchPanel.vue';
+import { createIconifyIcon } from '@/components/icons';
+import { useCrud } from '@/components/crud/UseCrud';
+import formPanel from './module/formPanel.vue';
+defineOptions({
     name: 'EmailAccount'
-  })
-
-  const perms = {
+});
+const perms = {
     add: ['sys:emailAccount:add'],
     edit: ['sys:emailAccount:edit'],
     del: ['sys:emailAccount:del'],
     download: ['sys:emailAccount:download']
-  }
-
-  const appStore = useAppStore()
-
-  const searchInfo = ref({
+};
+const searchInfo = ref({
     email: null,
     displayName: null,
     userName: null
-  })
-
-  const {
-    data,
-    searchToggle,
-    loading,
-    onSelectionChange,
-    pagination,
-    onSortChange
-  } = useCrud({
-    crudMethod: { list: get, del: del, add: add, edit: edit },
+});
+const crud = useCrud({
+    crudMethod: {
+        list: get,
+        del: del,
+        add: add,
+        edit: edit,
+        download: () => Promise.resolve({})
+    },
     defaultForm: () => ({
-      id: 0,
-      email: null,
-      displayName: null,
-      host: null,
-      port: null,
-      userName: null,
-      password: null,
-      enableSsl: false,
-      useDefaultCredentials: false
+        id: '0',
+        email: undefined,
+        displayName: undefined,
+        host: undefined,
+        port: undefined,
+        userName: undefined,
+        password: undefined,
+        enableSsl: false,
+        useDefaultCredentials: false
     }),
     searchInfo
-  })
+});
+const { data, searchToggle, loading, refresh, resetQuery, onSelectionChange, pagination, onSortChange } = crud;
+const tableColumns = computed(() => [
+    { key: 'selection', label: '', type: 'selection', width: 55 },
+    { key: 'id', label: '账号Id', prop: 'id', width: 160, showOverflowTooltip: true },
+    {
+        key: 'email',
+        label: '邮箱',
+        prop: 'email',
+        sortable: 'custom',
+        minWidth: 200
+    },
+    {
+        key: 'displayName',
+        label: '显示名称',
+        prop: 'displayName',
+        sortable: 'custom',
+        minWidth: 150
+    },
+    {
+        key: 'host',
+        label: '主机',
+        prop: 'host',
+        sortable: 'custom',
+        minWidth: 160
+    },
+    {
+        key: 'port',
+        label: '端口',
+        prop: 'port',
+        sortable: 'custom',
+        width: 100
+    },
+    {
+        key: 'userName',
+        label: '用户名称',
+        prop: 'userName',
+        sortable: 'custom',
+        minWidth: 150
+    },
+    {
+        key: 'enableSsl',
+        label: 'Ssl',
+        prop: 'enableSsl',
+        sortable: 'custom',
+        width: 90
+    },
+    {
+        key: 'useDefaultCredentials',
+        label: '系统凭据',
+        prop: 'useDefaultCredentials',
+        sortable: 'custom',
+        width: 110
+    },
+    {
+        key: 'creationTime',
+        label: '创建时间',
+        prop: 'creationTime',
+        sortable: 'custom',
+        minWidth: 170
+    },
+    { key: 'actions', label: '操作', width: 180 }
+]);
 </script>

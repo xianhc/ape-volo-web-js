@@ -1,62 +1,50 @@
 <template>
-  <el-form-item :label="label">
+  <el-form-item label="时间范围">
     <el-date-picker
-      v-model="startDate"
-      type="datetime"
-      :placeholder="startPlaceholder"
-      :disabled-date="disabledStartDate"
-    />
-    —
-    <el-date-picker
-      v-model="endDate"
-      type="datetime"
-      :placeholder="endPlaceholder"
-      :disabled-date="disabledEndDate"
+      v-model="range"
+      type="datetimerange"
+      :clearable="true"
+      range-separator="至"
+      start-placeholder="开始时间"
+      end-placeholder="结束时间"
+      value-format="YYYY-MM-DD HH:mm:ss"
+      :default-time="defaultTime"
+      @change="handleChange"
     />
   </el-form-item>
 </template>
 
 <script setup>
-  import { ref, watch } from 'vue'
-  import { formatTime } from '@/utils/dateTime'
-
-  const props = defineProps({
-    label: {
-      type: String,
-      default: '创建时间'
-    },
-    startPlaceholder: {
-      type: String,
-      default: '开始时间'
-    },
-    endPlaceholder: {
-      type: String,
-      default: '结束时间'
-    },
-    modelValue: {
-      type: Object,
-      required: true
+/**
+ * 时间范围选择器，读写查询条件里的 startTime / endTime。
+ */
+import { ref, watch } from 'vue';
+const props = defineProps({
+    modelValue: { type: Object, required: false, default: () => ({}) }
+});
+const emit = defineEmits(["update:modelValue"]);
+const defaultTime = [
+    new Date(2000, 0, 1, 0, 0, 0),
+    new Date(2000, 0, 1, 23, 59, 59)
+];
+const toRange = (model) => model?.startTime && model?.endTime
+    ? [String(model.startTime), String(model.endTime)]
+    : null;
+const range = ref(toRange(props.modelValue));
+watch(() => [props.modelValue?.startTime, props.modelValue?.endTime], () => {
+    const next = toRange(props.modelValue);
+    if (JSON.stringify(next) !== JSON.stringify(range.value)) {
+        range.value = next;
     }
-  })
-
-  const emit = defineEmits(['update:modelValue'])
-
-  const startDate = ref(props.modelValue.startTime || null)
-  const endDate = ref(props.modelValue.endTime || null)
-
-  const disabledStartDate = (time) => {
-    return endDate.value ? time.getTime() > endDate.value.getTime() : false
-  }
-
-  const disabledEndDate = (time) => {
-    return startDate.value ? time.getTime() < startDate.value.getTime() : false
-  }
-
-  watch([startDate, endDate], ([newStart, newEnd]) => {
+});
+/**
+ * 把选择结果写回查询条件对象，清空时一并置空两个字段。
+ */
+const handleChange = (value) => {
     emit('update:modelValue', {
-      ...props.modelValue,
-      startTime: formatTime(newStart),
-      endTime: formatTime(newEnd)
-    })
-  })
+        ...props.modelValue,
+        startTime: value?.[0] ?? null,
+        endTime: value?.[1] ?? null
+    });
+};
 </script>

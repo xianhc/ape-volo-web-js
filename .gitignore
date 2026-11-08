@@ -12,16 +12,19 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# 包管理器统一使用 pnpm，忽略其它锁文件
 package-lock.json
+yarn.lock
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.vscode
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+

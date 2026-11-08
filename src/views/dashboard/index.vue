@@ -2,34 +2,14 @@
   <div class="p-6">
     <el-card shadow="never" class="mt-2 ape-volo-content">
       <el-row class="h-30">
-        <el-col :span="18" :xs="24">
+        <el-col :span="24">
           <div class="flex items-start justify-start">
             <img
               class="w-20 h-20 rounded-full"
-              :src="getBaseUrl() + userStore.userInfo.headerImg"
+              :src="getStaticBaseUrl() + userStore.userInfo.headerImg"
             />
             <div class="ml-5 mt-4">
               <p class="text-xl font-bold">{{ greetings }}</p>
-              <p class="text-sm mt-2 text-gray">今日晴，20℃ - 32℃！</p>
-            </div>
-          </div>
-        </el-col>
-
-        <el-col :span="6" :xs="24">
-          <div
-            class="flex flex-row items-center justify-end h-full pr-3 space-x-8"
-          >
-            <div class="flex flex-col items-center">
-              <span class="text-2xl font-bold text-blue-600">2/10</span>
-              <span class="text-xs text-gray-500">待办</span>
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="text-2xl font-bold text-green-600">8</span>
-              <span class="text-xs text-gray-500">项目</span>
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="text-2xl font-bold text-orange-600">300</span>
-              <span class="text-xs text-gray-500">团队</span>
             </div>
           </div>
         </el-col>
@@ -37,18 +17,16 @@
     </el-card>
 
     <!-- 快捷导航 -->
-    <el-row :gutter="10" class="mt-5">
-      <el-col :span="8">
-        <el-card shadow="never" class="ape-volo-content">
+    <el-row :gutter="10" class="mt-5 gap-y-3">
+      <el-col :xs="24" :lg="12">
+        <el-card shadow="never" class="ape-volo-content h-full">
           <template #header>
             <span class="text-gray">快捷导航</span>
           </template>
           <div
             class="dark:text-neutral-400 rounded shadow p-4 border border-gray-200 dark:border-neutral-700"
           >
-            <div
-              class="grid grid-cols-2 md:grid-cols-3 3xl:grid-cols-4 gap-8 border"
-            >
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-8 border">
               <div
                 v-for="(item, index) in menuNavigations"
                 :key="index"
@@ -58,9 +36,9 @@
                 <div
                   class="w-12 h-12 rounded border-2 border-gray-300 dark:border-neutral-500 bg-gray-200 dark:bg-gray-200 flex items-center justify-center group-hover:bg-blue-400 group-hover:text-white group-hover:border-blue-400 transition-all duration-200"
                 >
-                  <el-icon class="text-2xl"
-                    ><component :is="item.icon"
-                  /></el-icon>
+                  <el-icon class="text-2xl">
+                    <AppIcon :icon="item.icon" />
+                  </el-icon>
                 </div>
                 <div
                   class="text-sm mt-3 text-gray-700 dark:text-gray-300 font-medium"
@@ -72,14 +50,14 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="16">
-        <el-card shadow="never" class="ape-volo-content">
+      <el-col :xs="24" :lg="12">
+        <el-card shadow="never" class="ape-volo-content h-full">
           <template #header>
             <span class="text-gray">项目</span>
           </template>
           <div>
             <div
-              class="grid grid-rows-2 grid-cols-3 divide-x divide-y cursor-pointer dark:text-neutral-400 rounded shadow border border-gray-200 dark:border-neutral-700"
+              class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 divide-x divide-y cursor-pointer dark:text-neutral-400 rounded shadow border border-gray-200 dark:border-neutral-700"
             >
               <div
                 v-for="(item, index) in projectItems"
@@ -87,9 +65,9 @@
                 class="flex flex-col justify-between p-6 min-h-[140px]"
               >
                 <div class="flex items-center mb-2">
-                  <el-icon class="text-3xl mr-2"
-                    ><component :is="item.icon"
-                  /></el-icon>
+                  <el-icon class="text-3xl mr-2">
+                    <AppIcon :icon="item.icon" />
+                  </el-icon>
                   <span class="text-xl font-bold">{{ item.title }}</span>
                 </div>
                 <div class="flex-1 text-base mb-2">
@@ -119,7 +97,9 @@
               </el-radio-group>
             </div>
           </template>
-          <ECharts :options="visitTrendChartOptions" height="400px" />
+          <div class="h-[400px]">
+            <ECharts :options="visitTrendChartOptions" height="400px" />
+          </div>
         </el-card>
       </el-col>
       <!-- 更新日志 -->
@@ -133,9 +113,10 @@
                 :underline="false"
                 href="https://www.apevolo.com/change-log.html"
                 target="_blank"
+                rel="noopener noreferrer"
               >
                 完整记录
-                <el-icon><TopRight /></el-icon>
+                <el-icon><AppIcon icon="lucide:arrow-up-right" /></el-icon>
               </el-link>
             </div>
           </template>
@@ -165,19 +146,22 @@
                     </el-tag>
                   </div>
 
-                  <el-text class="changeLog-content">{{
-                    item.content
-                  }}</el-text>
+                  <el-text class="changeLog-content">
+                    {{ item.content }}
+                  </el-text>
 
                   <div v-if="item.link">
                     <el-link
                       :type="index === 0 ? 'primary' : 'info'"
                       :href="item.link"
                       target="_blank"
+                      rel="noopener noreferrer"
                       :underline="false"
                     >
                       详情
-                      <el-icon class="link-icon"><TopRight /></el-icon>
+                      <el-icon class="link-icon">
+                        <AppIcon icon="lucide:arrow-up-right" />
+                      </el-icon>
                     </el-link>
                   </div>
                 </div>
@@ -194,23 +178,48 @@
   defineOptions({
     name: 'Dashboard'
   })
-
-  import { ref, watch, computed } from 'vue'
-  import ECharts from '@/components/eCharts/index.vue'
+  import { ref, watch, computed, defineAsyncComponent } from 'vue'
   import { getVisitTrend } from '@/api/log/operateLog'
   import { useUserStore } from '@/pinia/modules/user'
-  import { getBaseUrl } from '@/utils/index'
+  import { getStaticBaseUrl } from '@/utils/index'
   import { useRouter } from 'vue-router'
+  const ECharts = defineAsyncComponent(() => import('@/components/Echarts.vue'))
   const router = useRouter()
-
   const userStore = useUserStore()
-
   // 更新记录
   const changeLogList = ref([
     {
+      version: 'V3.6.2.2',
+      date: '2026-11-08',
+      content: '重整作业调度与日志，完善启停和状态展示，统一图标、首页布局。',
+      tag: '最新'
+    },
+    {
+      version: 'V3.6.21',
+      date: '2026-11-07',
+      content: '简化缓存与会话机制，优化数据权限缓存和跨标签页账号切换。',
+      link: 'https://www.apevolo.com/change-log.html',
+      tag: '优化'
+    },
+    {
+      version: 'V3.6.2',
+      date: '2026-11-07',
+      content:
+        '完善部门用户管理与权限控制，新增 PostgreSQL 支持，优化上传与日志。',
+      link: 'https://www.apevolo.com/change-log.html',
+      tag: '功能更新'
+    },
+    {
+      version: 'V3.6.1',
+      date: '2026-10-31',
+      content: '重构前后端工程与服务分层，统一接口契约、会话和页面组件。',
+      link: 'https://www.apevolo.com/change-log.html',
+      tag: '重构'
+    },
+    {
       version: 'v3.5.2',
       date: '2026-04-12',
-      content: '前端重构为TS版本，UnoCSS替换Tailwind CSS，用户偏好设置持久化。',
+      content: '使用 UnoCSS 管理原子样式，支持用户偏好设置持久化。',
       link: 'https://www.apevolo.com/change-log.html',
       tag: '里程碑'
     },
@@ -244,7 +253,6 @@
       tag: '里程碑'
     }
   ])
-
   // 当前时间
   const currentDate = new Date()
   const greetings = computed(() => {
@@ -266,23 +274,18 @@
       return `夜已深，${nickname}，愿你有个好梦，晚安🌛！`
     }
   })
-
   // 访问趋势日期范围（单位：天）
   const visitTrendDateRange = ref(7)
   // 访问趋势图表配置
   const visitTrendChartOptions = ref({})
-
   /**
    * 获取访问趋势数据，并更新图表配置
    */
   const fetchVisitTrendData = () => {
-    getVisitTrend({
-      days: visitTrendDateRange.value
-    }).then((res) => {
+    getVisitTrend(visitTrendDateRange.value).then((res) => {
       updateVisitTrendChartOptions(res.data)
     })
   }
-
   /**
    * 更新访问趋势图表的配置项
    *
@@ -350,7 +353,6 @@
       ]
     }
   }
-
   // 监听访问趋势日期范围的变化，重新获取趋势数据
   watch(
     () => visitTrendDateRange.value,
@@ -359,39 +361,37 @@
     },
     { immediate: true }
   )
-
   const toPath = (item) => {
     router.push({ name: item.path })
   }
-
   const menuNavigations = [
     {
-      icon: 'user',
+      icon: 'lucide:users-round',
       title: '用户管理',
       path: 'user'
     },
     {
-      icon: 'menu',
+      icon: 'lucide:list-tree',
       title: '菜单管理',
       path: 'menu'
     },
     {
-      icon: 'link',
+      icon: 'lucide:plug',
       title: 'API管理',
       path: 'api'
     },
     {
-      icon: 'role',
+      icon: 'lucide:shield-check',
       title: '角色管理',
       path: 'role'
     },
     {
-      icon: 'job',
+      icon: 'lucide:briefcase-business',
       title: '岗位管理',
       path: 'job'
     },
     {
-      icon: 'timer',
+      icon: 'lucide:timer',
       title: '作业调度',
       path: 'timing'
     }
@@ -399,42 +399,42 @@
 
   const projectItems = [
     {
-      icon: 'github',
+      icon: 'lucide:github',
       title: 'Github',
       desc: '不要等待机会，而要创造机会。',
       tag: '开源组',
       date: '2025-01-01'
     },
     {
-      icon: 'vue1',
+      icon: 'mdi:vuejs',
       title: 'Vue',
       desc: '现在的你决定将来的你。',
       tag: '算法组',
       date: '2025-01-01'
     },
     {
-      icon: 'html5',
+      icon: 'mdi:language-html5',
       title: 'Html5',
       desc: '没有什么比努力更重要。',
       tag: '上班摸鱼',
       date: '2025-01-01'
     },
     {
-      icon: 'angular',
+      icon: 'mdi:angular',
       title: 'Angular',
       desc: '热情和欲望可以突破一切难关。',
       tag: 'UI',
       date: '2025-01-01'
     },
     {
-      icon: 'react',
+      icon: 'mdi:react',
       title: 'React',
       desc: '健康的身体是实现目标的基石。',
       tag: '技术牛',
       date: '2025-01-01'
     },
     {
-      icon: 'js',
+      icon: 'mdi:language-javascript',
       title: 'Js',
       desc: '路是走出来的，而不是空想出来的。',
       tag: '架构组',

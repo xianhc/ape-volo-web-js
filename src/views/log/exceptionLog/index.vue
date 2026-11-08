@@ -1,57 +1,59 @@
 <template>
-  <div>
-    <div v-if="searchToggle" class="ape-volo-search">
-      <el-form :inline="true" :model="searchInfo">
-        <el-form-item label="操作人">
-          <el-input v-model="searchInfo.createBy" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="请求方式">
-          <el-select v-model="searchInfo.method" clearable placeholder="请选择">
-            <el-option
-              v-for="item in httpMethodOption"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="searchInfo.description" placeholder="请输入" />
-        </el-form-item>
-        <DateRangePicker v-model="searchInfo" />
-        <SearchOpts />
-      </el-form>
-    </div>
-    <div v-else class="p-1 rounded"></div>
-    <div class="ape-volo-table">
-      <el-table
-        ref="tableRef"
-        :data="data"
-        v-loading="loading"
-        @sort-change="onSortChange"
-        row-key="id"
-      >
-        <el-table-column prop="createBy" label="账号" sortable="custom" />
-        <el-table-column prop="createTime" label="创建时间" sortable="custom" />
-        <el-table-column prop="requestUrl" label="请求地址" />
-        <el-table-column prop="description" label="描述" sortable="custom" />
-        <el-table-column prop="method" label="请求方式" sortable="custom" />
-        <el-table-column prop="requestIp" label="Ip地址" sortable="custom" />
-        <el-table-column prop="ipAddress" label="归属地" sortable="custom" />
-        <el-table-column :min-width="appStore.operateMinWith" label="操作">
-          <template v-slot="scope">
-            <el-button
-              @click="showExceptionLogDetail(scope.row)"
-              icon="view"
-              type="text"
-            >
-              详情
-            </el-button>
+  <div class="table-managed-view">
+    <TablePage
+      v-model:search-visible="searchToggle"
+      title="异常日志"
+      :data="data"
+      :columns="tableColumns"
+      :error="tableError"
+      :loading="loading"
+      row-key="id"
+      @refresh="refresh"
+      @sort-change="onSortChange"
+    >
+      <template #search>
+        <SearchPanel
+          :model="searchInfo"
+          :loading="loading"
+          @query="search"
+          @reset="resetQuery"
+        >
+          <el-form-item label="操作人">
+            <el-input v-model="searchInfo.controller" placeholder="请输入" />
+          </el-form-item>
+          <el-form-item label="请求方式">
+            <el-select v-model="searchInfo.method" clearable placeholder="请选择">
+              <el-option
+                v-for="item in httpMethodOption"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <template #advanced>
+            <el-form-item label="描述">
+              <el-input v-model="searchInfo.description" placeholder="请输入" />
+            </el-form-item>
+            <DateRangePicker v-model="searchInfo" />
           </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination v-bind="pagination" />
-    </div>
+        </SearchPanel>
+      </template>
+      <template #column-actions="scope">
+        <RowActions>
+          <el-button
+            :icon="createIconifyIcon('lucide:eye')"
+            type="text"
+            @click="showExceptionLogDetail(scope.row)"
+          >
+            详情
+          </el-button>
+        </RowActions>
+      </template>
+      <template #pagination>
+        <el-pagination v-bind="pagination" />
+      </template>
+    </TablePage>
     <el-drawer
       v-model="exceptionDetailDrawer"
       direction="rtl"
@@ -82,9 +84,9 @@
             style="grid-template-columns: 88px 1fr"
           >
             <span class="text-emerald-500 min-w-[88px]">操作人：</span
-            ><span class="break-all">{{ currentRow.createBy }}</span>
+            ><span class="break-all">{{ currentRow.creatorName }}</span>
             <span class="text-emerald-500 min-w-[88px]">请求时间：</span
-            ><span class="break-all">{{ currentRow.createTime }}</span>
+            ><span class="break-all">{{ currentRow.creationTime }}</span>
             <span class="text-emerald-500 min-w-[88px]">请求地址：</span
             ><span class="break-all">{{ currentRow.requestUrl }}</span>
             <span class="text-emerald-500 min-w-[88px]">请求方式：</span
@@ -127,52 +129,66 @@
 </template>
 
 <script setup>
-  import { get } from '@/api/log/exceptionLog'
-  import { ref } from 'vue'
-  import DateRangePicker from '@/components/CRUD/DateRangePicker.vue'
-  import { useCrud } from '@/components/Crud/UseCrud'
-  import SearchOpts from '@/components/CRUD/SearchOpts.vue'
-  import { useAppStore } from '@/pinia'
-  import { getDict } from '@/utils/dictionary'
-
-  defineOptions({
+import { computed, ref } from 'vue';
+import { get } from '@/api/log/exceptionLog';
+import TablePage from '@/components/crud/TablePage.vue';
+import SearchPanel from '@/components/crud/SearchPanel.vue';
+import RowActions from '@/components/crud/RowActions.vue';
+import DateRangePicker from '@/components/crud/DateRangePicker.vue';
+import { createIconifyIcon } from '@/components/icons';
+import { useDictionary } from '@/composables/useDictionary';
+import { useTableController } from '@/composables/useTableController';
+import { useAppStore } from '@/pinia';
+defineOptions({
     name: 'ExceptionLog'
-  })
-
-  const appStore = useAppStore()
-
-  const exceptionDetailDrawer = ref(false)
-  const currentRow = ref({})
-  const tableRef = ref()
-  const searchInfo = ref({})
-  const httpMethodOption = ref([])
-
-  const { data, searchToggle, loading, pagination, onSortChange } = useCrud({
-    crudMethod: { list: get },
-    defaultForm: () => ({}),
-    searchInfo
-  })
-
-  getDict('http_method')
-    .then((res) => {
-      httpMethodOption.value = res
-    })
-    .catch((err) => {
-      console.error('获取 http_method 失败:', err)
-    })
-
-  const showExceptionLogDetail = (row) => {
-    exceptionDetailDrawer.value = true
-    currentRow.value = { ...row }
-  }
-
-  const formatJson = (value) => {
-    if (!value) return ''
+});
+const appStore = useAppStore();
+const exceptionDetailDrawer = ref(false);
+const currentRow = ref({});
+/**
+ * 创建初始筛选条件，避免共享可变对象。
+ * @returns 与当前界面隔离的初始筛选条件。
+ */
+const queryDefaults = () => ({});
+const searchInfo = ref(queryDefaults());
+const { options: httpMethodOption } = useDictionary('http_method');
+const { data, loading, error: tableError, searchVisible: searchToggle, pagination, search, refresh, resetQuery, onSortChange } = useTableController({
+    list: get,
+    query: searchInfo,
+    defaults: queryDefaults
+});
+/**
+ * 打开异常日志详情抽屉。
+ * @param row 当前行记录。
+ */
+const showExceptionLogDetail = (row) => {
+    exceptionDetailDrawer.value = true;
+    currentRow.value = { ...row };
+};
+/**
+ * 将结构化内容转换为便于阅读的 JSON 文本。
+ * @param value 待格式化内容。
+ * @returns 缩进后的 JSON 文本；无内容时返回空文本。
+ */
+const formatJson = (value) => {
+    if (!value)
+        return '';
     try {
-      const obj = typeof value === 'string' ? JSON.parse(value) : value
-      return JSON.stringify(obj, null, 2)
-    } catch (err) {
-      return value
+        const obj = typeof value === 'string' ? JSON.parse(value) : value;
+        return JSON.stringify(obj, null, 2);
     }
-  }
+    catch {
+        return String(value);
+    }
+};
+const tableColumns = computed(() => [
+    { key: 'creatorName', label: '账号', prop: 'creatorName', sortable: 'custom', minWidth: 120 },
+    { key: 'creationTime', label: '创建时间', prop: 'creationTime', sortable: 'custom', minWidth: 170 },
+    { key: 'requestUrl', label: '请求地址', prop: 'requestUrl', minWidth: 220, showOverflowTooltip: true },
+    { key: 'description', label: '描述', prop: 'description', sortable: 'custom', minWidth: 160, showOverflowTooltip: true },
+    { key: 'method', label: '请求方式', prop: 'method', sortable: 'custom', width: 110 },
+    { key: 'requestIp', label: 'Ip地址', prop: 'requestIp', sortable: 'custom', width: 140 },
+    { key: 'ipAddress', label: '归属地', prop: 'ipAddress', sortable: 'custom', width: 140 },
+    { key: 'actions', label: '操作', width: 100, align: 'center' }
+]);
 </script>

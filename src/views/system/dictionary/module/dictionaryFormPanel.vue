@@ -7,15 +7,12 @@
     width="600px"
   >
     <el-form ref="dictForm" :model="form" :rules="rules" label-width="80px">
-      <el-form-item
-        label="字典类型"
-        prop="dictType"
-      >
+      <el-form-item label="字典类型" prop="dictType">
         <el-radio
-          border
           v-for="item in props.dictTypeOption"
           :key="item.id"
           v-model="form.dictType"
+          border
           :label="Number(item.value)"
         >
           {{ item.label }}
@@ -36,33 +33,27 @@
     <template #footer>
       <div>
         <el-button @click="closeDialog">取消</el-button>
-        <el-button type="primary" :loading="loading" @click="handleSave">保存</el-button>
+        <el-button type="primary" :loading="loading" @click="handleSave">
+          保存
+        </el-button>
       </div>
     </template>
   </el-dialog>
 </template>
 <script setup>
-  import { ref, inject } from 'vue'
-
-
-  const props = defineProps({
-    dictTypeOption: {
-      type: Array,
-      required: true
-    }
-  })
-
-  // 注入crud
-  const crud = inject('crud')
-  const { form, dialogVisible, loading, closeDialog, validateAndSave, getFormTitle } = crud
-
-  const dictForm = ref(null)
-  const rules = ref({
+import { useCrudForm } from '@/components/crud/crudContext';
+import { ref } from 'vue';
+const props = defineProps({
+    dictTypeOption: { type: Array, required: true }
+});
+// 注入crud
+const crud = useCrudForm();
+const { form, dialogVisible, loading, closeDialog, validateAndSave, getFormTitle } = crud;
+const dictForm = ref();
+const rules = ref({
     dictType: [{ required: true, message: '请选择字典类型', trigger: 'blur' }],
     name: [{ required: true, message: '请输入字典名称', trigger: 'blur' }]
-  })
-  // 验证表单并保存
-  const handleSave = () => validateAndSave(dictForm.value)
+});
+// 验证表单并保存
+const handleSave = () => validateAndSave(dictForm.value);
 </script>
-
-

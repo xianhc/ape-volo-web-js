@@ -1,217 +1,362 @@
 <template>
-  <div class="grid grid-cols-2 gap-6 nav-theme-font px-6" role="radiogroup">
-    <div
+  <div class="layout-mode-grid" role="radiogroup" :aria-label="'布局模式'">
+    <button
       v-for="layout in layoutModes"
       :key="layout.value"
-      class="nav-theme-layout-card ape-theme-layout-card"
+      type="button"
+      class="layout-mode-option preference-choice"
       :class="{ 'is-selected': modelValue === layout.value }"
       role="radio"
-      tabindex="0"
       :aria-checked="modelValue === layout.value"
-      :aria-label="layout.label"
-      :style="getCardStyle(layout.value)"
-      @click="handleLayoutChange(layout.value)"
-      @keydown.enter.prevent="handleLayoutChange(layout.value)"
-      @keydown.space.prevent="handleLayoutChange(layout.value)"
+      @click="emit('update:modelValue', layout.value)"
     >
-      <div
-        v-if="modelValue === layout.value"
-        class="layout-selected-badge"
-        :style="{ backgroundColor: primaryColor }"
-      >
-        <span class="i-mdi-check text-white h-3.5 w-3.5"></span>
-      </div>
-
-      <div class="mb-5">
-        <div class="layout-icon-wrap" :style="getIconWrapStyle(layout.value)">
-          <SvgIcon
-            :name="layout.icon"
-            class="layout-mode-icon"
-            :color="modelValue === layout.value ? primaryColor : 'currentColor'"
-          />
-        </div>
-      </div>
-
-      <div class="text-center">
-        <div class="inline-flex items-center justify-center gap-2">
-          <span
-            class="block text-base font-semibold nav-theme-text-main"
-            :style="modelValue === layout.value ? { color: primaryColor } : {}"
-            >{{ layout.label }}</span
-          >
-          <el-tooltip
-            :content="layout.description"
-            placement="top"
-            effect="dark"
-          >
-            <span
-              class="i-mdi-help-circle-outline h-4 w-4 cursor-help text-gray-400 transition-colors duration-150"
-              :style="
-                modelValue === layout.value ? { color: primaryColor } : {}
-              "
-              @click.stop
-            ></span>
-          </el-tooltip>
-        </div>
-      </div>
-    </div>
+      <span class="layout-preview preference-preview-frame" :class="'layout-preview-' + layout.value" aria-hidden="true">
+        <span class="mini-sidebar"><i></i><i></i><i></i><i></i></span>
+        <span class="mini-secondary"><i></i><i></i><i></i></span>
+        <span class="mini-header"><i></i><i></i><i></i><i></i></span>
+        <span class="mini-content"><i></i><i></i><i></i></span>
+      </span>
+      <span class="layout-mode-caption">
+        <span>{{ layout.label }}</span>
+        <el-tooltip :content="layout.description" placement="top">
+          <AppIcon icon="lucide:circle-help" class="layout-help-icon" />
+        </el-tooltip>
+      </span>
+    </button>
   </div>
 </template>
 
 <script setup>
-  import { computed } from 'vue'
-  import { storeToRefs } from 'pinia'
-  import { useAppStore } from '@/pinia'
-  import { MenuNavigationType } from '@/enums/MenuNavigationType'
-  import SvgIcon from '@/components/SvgIcon/svgIcon.vue'
-
-  defineOptions({
+/**
+ * 布局模式卡片组件。
+ */
+import AppIcon from '@/components/AppIcon.vue';
+import { computed } from 'vue';
+import { MenuNavigationType } from '@/enums/MenuNavigationType';
+defineOptions({
     name: 'LayoutModeCard'
-  })
-
-  const props = defineProps({
-    modelValue: {
-      type: Number,
-      default: MenuNavigationType.SidebarNav
-    }
-  })
-
-  const emit = defineEmits(['update:modelValue'])
-
-  const appStore = useAppStore()
-  const { config } = storeToRefs(appStore)
-
-  const primaryColor = computed(() => config.value.primaryColor)
-
-  const layoutModeMap = {
+});
+defineProps({
+    modelValue: { type: null, required: false, default: MenuNavigationType.SidebarNav }
+});
+const emit = defineEmits(["update:modelValue"]);
+const layoutModeMap = {
     [MenuNavigationType.SidebarNav]: {
-      icon: 'sidebar-nav',
-      label: '垂直',
-      description: '侧边垂直菜单模式'
+        icon: 'lucide:panel-left',
+        /**
+         * 面向用户显示的标签。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get label() {
+            return '垂直';
+        },
+        /**
+         * 用于解释用途的描述。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get description() {
+            return '侧边垂直菜单模式';
+        }
     },
     [MenuNavigationType.TopNav]: {
-      icon: 'top-nav',
-      label: '水平',
-      description: '水平菜单模式，菜单全部显示在顶部'
+        icon: 'lucide:panel-top',
+        /**
+         * 面向用户显示的标签。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get label() {
+            return '水平';
+        },
+        /**
+         * 用于解释用途的描述。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get description() {
+            return '水平菜单模式，菜单全部显示在顶部';
+        }
     },
     [MenuNavigationType.DualSidebarNav]: {
-      icon: 'dual-sidebar-nav',
-      label: '双列菜单',
-      description: '垂直双列菜单模式'
+        icon: 'lucide:columns-2',
+        /**
+         * 面向用户显示的标签。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get label() {
+            return '双列菜单';
+        },
+        /**
+         * 用于解释用途的描述。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get description() {
+            return '垂直双列菜单模式';
+        }
     },
     [MenuNavigationType.CombinationNav]: {
-      icon: 'combination',
-      label: '混合垂直',
-      description: '垂直水平菜单共存'
+        icon: 'lucide:panels-top-left',
+        /**
+         * 面向用户显示的标签。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get label() {
+            return '顶部+侧栏';
+        },
+        /**
+         * 用于解释用途的描述。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get description() {
+            return '顶部选择一级菜单，侧栏显示其下级菜单';
+        }
+    },
+    [MenuNavigationType.MixedNav]: {
+        icon: 'lucide:panels-top-left',
+        /**
+         * 面向用户显示的标签。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get label() {
+            return '混合导航';
+        },
+        /**
+         * 用于解释用途的描述。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get description() {
+            return '顶部完整菜单与完整侧栏同时显示';
+        }
+    },
+    [MenuNavigationType.HeaderMixedNav]: {
+        icon: 'lucide:columns-2',
+        /**
+         * 面向用户显示的标签。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get label() {
+            return '顶部双列';
+        },
+        /**
+         * 用于解释用途的描述。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get description() {
+            return '顶部菜单与双列侧栏组合显示';
+        }
+    },
+    [MenuNavigationType.FullContent]: {
+        icon: 'lucide:panels-top-left',
+        /**
+         * 面向用户显示的标签。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get label() {
+            return '全内容';
+        },
+        /**
+         * 用于解释用途的描述。
+         * @returns 当前语言下对应条目的显示文案。
+         */
+        get description() {
+            return '隐藏导航框架，仅保留内容与固定设置入口';
+        }
     }
-  }
-
-  const layoutModeOrder = [
+};
+const layoutModeOrder = [
     MenuNavigationType.SidebarNav,
     MenuNavigationType.TopNav,
     MenuNavigationType.DualSidebarNav,
-    MenuNavigationType.CombinationNav
-  ]
-
-  const layoutModes = layoutModeOrder.map((value) => ({
+    MenuNavigationType.CombinationNav,
+    MenuNavigationType.MixedNav,
+    MenuNavigationType.HeaderMixedNav,
+    MenuNavigationType.FullContent
+];
+const layoutModes = computed(() => layoutModeOrder.map((value) => ({
     value,
     ...layoutModeMap[value]
-  }))
-
-  const getCardStyle = (value) => {
-    return value === props.modelValue
-      ? {
-          borderColor: primaryColor.value,
-          ringColor: `${primaryColor.value}40`
-        }
-      : {}
-  }
-
-  const getIconWrapStyle = (value) => {
-    return value === props.modelValue
-      ? {
-          backgroundColor: `${primaryColor.value}14`,
-          boxShadow: `inset 0 0 0 1px ${primaryColor.value}2e`
-        }
-      : {}
-  }
-
-  const handleLayoutChange = (layout) => {
-    emit('update:modelValue', layout)
-  }
+})));
 </script>
 
 <style scoped>
-  .nav-theme-layout-card {
+  .layout-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px 18px;
+  }
+  .layout-mode-option {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--app-text-secondary);
+    font: inherit;
+    cursor: pointer;
+  }
+  .layout-preview {
     position: relative;
-    border-radius: calc(var(--ape-volo-radius));
-    transition: border-color 0.18s ease, box-shadow 0.18s ease,
-      transform 0.18s ease;
+    display: block;
+    height: 86px;
+    overflow: hidden;
+    border: 1px solid var(--app-border);
+    border-radius: var(--preference-radius, 10px);
+    background: var(--app-surface-subtle);
+    transition: border-color 180ms, box-shadow 180ms;
   }
-
-  .nav-theme-layout-card:not(.is-selected):hover {
+  .layout-mode-option:hover .layout-preview {
     border-color: var(--el-color-primary);
-    box-shadow: inset 0 0 0 1px var(--el-color-primary);
-    transform: translateY(-2px);
   }
-
-  .nav-theme-layout-card.is-selected {
-    box-shadow: inset 0 0 0 1px var(--el-color-primary),
-      0 10px 25px rgba(15, 23, 42, 0.08);
-    transform: translateY(-2px);
+  .layout-mode-option.is-selected .layout-preview {
+    border-color: var(--el-color-primary);
+    box-shadow: 0 0 0 1px var(--el-color-primary);
   }
-
-  :global(.dark) .nav-theme-layout-card.is-selected {
-    box-shadow: inset 0 0 0 1px var(--el-color-primary),
-      0 10px 24px rgba(0, 0, 0, 0.28);
-  }
-
-  .nav-theme-layout-card:focus-visible {
+  .layout-mode-option:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 4px;
+    border-radius: 10px;
   }
-
-  .layout-icon-wrap {
+  .layout-mode-caption {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 116px;
-    border-radius: calc(var(--ape-volo-radius));
-    background: rgba(148, 163, 184, 0.1);
-    color: #64748b;
-    transition: background-color 0.18s ease, box-shadow 0.18s ease,
-      color 0.18s ease, transform 0.18s ease;
+    gap: 4px;
+    font-size: 12px;
+    line-height: 1.5;
   }
-
-  .layout-selected-badge {
+  .layout-help-icon {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    color: var(--app-text-muted);
+  }
+  .mini-sidebar, .mini-secondary {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    display: inline-flex;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    inset: 5px auto 5px 5px;
+    width: 25px;
+    padding: 6px 4px;
+    background: var(--el-color-primary);
+    border-radius: 3px;
+  }
+  .mini-sidebar i {
+    height: 3px;
+    background: rgb(255 255 255 / 75%);
+    border-radius: 2px;
+  }
+  .mini-sidebar i:first-child {
+    width: 9px;
+    height: 9px;
+    margin-bottom: 2px;
+    background: white;
+  }
+  .mini-secondary {
+    display: none;
+    background: var(--app-border-strong);
+  }
+  .mini-secondary i {
+    height: 4px;
+    background: var(--app-surface);
+    border-radius: 2px;
+  }
+  .mini-header {
+    position: absolute;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 9999px;
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.16);
+    gap: 5px;
+    inset: 5px 5px auto 34px;
+    height: 12px;
+    padding: 3px;
+    border-radius: 2px;
+    background: var(--app-border-strong);
   }
-
-  :global(.dark) .layout-icon-wrap {
-    background: rgba(148, 163, 184, 0.16);
-    color: #e2e8f0;
+  .mini-header i {
+    width: 9px;
+    height: 3px;
+    background: var(--app-surface);
+    border-radius: 2px;
   }
-
-  .layout-mode-icon {
-    width: 124px;
-    height: 124px;
-    max-width: 92%;
-    max-height: 92%;
+  .mini-header i:first-child {
+    width: 5px;
+    height: 5px;
+    margin-right: auto;
   }
-
-  @media (max-width: 480px) {
-    .grid-cols-2 {
-      grid-template-columns: repeat(1, minmax(0, 1fr));
+  .mini-content {
+    position: absolute;
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 4px;
+    inset: 22px 5px 5px 34px;
+  }
+  .mini-content i {
+    background: var(--app-border);
+    border-radius: 3px;
+  }
+  .mini-content i:last-child {
+    grid-column: span 2;
+  }
+  .layout-preview-2 .mini-sidebar, .layout-preview-7 .mini-sidebar {
+    display: none;
+  }
+  .layout-preview-2 .mini-header {
+    left: 5px;
+    background: var(--el-color-primary);
+  }
+  .layout-preview-2 .mini-content {
+    left: 5px;
+  }
+  .layout-preview-3 .mini-sidebar, .layout-preview-6 .mini-sidebar {
+    width: 13px;
+    padding-inline: 3px;
+  }
+  .layout-preview-3 .mini-sidebar i, .layout-preview-6 .mini-sidebar i {
+    max-width: 7px;
+  }
+  .layout-preview-3 .mini-secondary, .layout-preview-6 .mini-secondary {
+    display: flex;
+    left: 21px;
+    width: 16px;
+    padding-inline: 3px;
+  }
+  .layout-preview-3 .mini-header, .layout-preview-6 .mini-header {
+    left: 41px;
+  }
+  .layout-preview-3 .mini-content, .layout-preview-6 .mini-content {
+    left: 41px;
+  }
+  .layout-preview-4 .mini-header {
+    left: 5px;
+  }
+  .layout-preview-4 .mini-sidebar {
+    top: 21px;
+  }
+  .layout-preview-5 .mini-header, .layout-preview-6 .mini-header {
+    background: var(--el-color-primary);
+  }
+  .layout-preview-5 .mini-sidebar {
+    background: var(--app-border-strong);
+  }
+  .layout-preview-5 .mini-sidebar i {
+    background: var(--app-surface);
+  }
+  .layout-preview-7 .mini-header {
+    display: none;
+  }
+  .layout-preview-7 .mini-content {
+    inset: 7px;
+  }
+  @media (max-width: 400px) {
+    .layout-mode-grid {
+      gap: 20px 12px;
+    }
+    .layout-preview {
+      height: 74px;
+    }
+    .layout-mode-caption {
+      font-size: 11px;
+      gap: 3px;
     }
   }
 </style>

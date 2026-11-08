@@ -46,94 +46,102 @@
 </template>
 
 <script setup>
-  import { reactive, ref } from 'vue'
-  import { ElMessage } from 'element-plus'
-  import { editUserEmail } from '@/api/permission/user'
-  import { getResetEmailCode } from '@/api/verificationCode'
-  import { useUserStore } from '@/pinia/modules/user'
-  import { validEmail } from '@/utils/validate'
-
-  const userStore = useUserStore()
-
-  const emailForm = ref(null)
-  const emailModify = ref({})
-  const time = ref(0)
-
-  const props = defineProps({
+import { onBeforeUnmount, reactive, ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import { editUserEmail } from '@/api/identity/user';
+import { getResetEmailCode } from '@/api/verificationCode';
+import { useUserStore } from '@/pinia/modules/user';
+import { validEmail } from '@/utils/validate';
+const userStore = useUserStore();
+const emailForm = ref(null);
+const emailModify = ref({
+    email: '',
+    code: '',
+    pass: ''
+});
+const time = ref(0);
+let countdownTimer = null;
+const props = defineProps({
     showUpdateEmailPanel: {
-      type: Boolean,
-      required: true
+        type: Boolean,
+        required: true
     }
-  })
-
-  const emit = defineEmits(['update:showUpdateEmailPanel'])
-
-  const handleCancel = () => {
-    emit('update:showUpdateEmailPanel', false)
-    clearEmail()
-  }
-
-  const clearEmailAndHide = () => {
-    emit('update:showUpdateEmailPanel', false)
-    clearEmail()
-  }
-
-  const validMail = (rule, value, callback) => {
+});
+const emit = defineEmits(['update:showUpdateEmailPanel']);
+const handleCancel = () => {
+    emit('update:showUpdateEmailPanel', false);
+    clearEmail();
+};
+const clearEmailAndHide = () => {
+    emit('update:showUpdateEmailPanel', false);
+    clearEmail();
+};
+const validMail = (_rule, value, callback) => {
     if (value === '' || value === null) {
-      callback(new Error('新邮箱不能为空'))
-    } else if (value === userStore.userInfo.email) {
-      callback(new Error('新邮箱不能与旧邮箱相同'))
-    } else if (validEmail(value)) {
-      callback()
-    } else {
-      callback(new Error('邮箱格式错误'))
+        callback(new Error('新邮箱不能为空'));
     }
-  }
-  const rules = reactive({
+    else if (value === userStore.userInfo.email) {
+        callback(new Error('新邮箱不能与旧邮箱相同'));
+    }
+    else if (validEmail(value)) {
+        callback();
+    }
+    else {
+        callback(new Error('邮箱格式错误'));
+    }
+};
+const rules = reactive({
     pass: [{ required: true, message: '当前密码不能为空', trigger: 'blur' }],
     email: [{ required: true, validator: validMail, trigger: 'blur' }],
     code: [{ required: true, message: '验证码不能为空', trigger: 'blur' }]
-  })
-
-  const clearEmail = () => {
-    emailModify.value = {
-      email: '',
-      code: '',
-      pass: ''
+});
+const clearEmail = () => {
+    if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
     }
-    emailForm.value?.clearValidate()
-  }
-
-  const getEmailCode = async () => {
+    time.value = 0;
+    emailModify.value.email = '';
+    emailModify.value.code = '';
+    emailModify.value.pass = '';
+    emailForm.value?.clearValidate();
+};
+const getEmailCode = async () => {
     getResetEmailCode({
-      email: emailModify.value.email
+        email: emailModify.value.email
     }).then((res) => {
-      ElMessage.success(res.data.message)
-      time.value = 60
-      let timer = setInterval(() => {
-        time.value--
-        if (time.value <= 0) {
-          clearInterval(timer)
-          timer = null
+        ElMessage.success(res.data?.message || '验证码已发送');
+        time.value = 60;
+        if (countdownTimer)
+            clearInterval(countdownTimer);
+        countdownTimer = setInterval(() => {
+            time.value--;
+            if (time.value <= 0 && countdownTimer) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+            }
+        }, 1000);
+    });
+};
+const doSubmit = async () => {
+    emailForm.value?.validate((valid) => {
+        if (valid) {
+            editUserEmail({
+                email: emailModify.value.email,
+                code: emailModify.value.code,
+                pass: emailModify.value.pass
+            }).then(() => {
+                userStore.ResetUserInfo({
+                    email: emailModify.value.email
+                });
+                ElMessage.success('更新邮箱成功');
+                emit('update:showUpdateEmailPanel', false);
+            });
         }
-      }, 1000)
-    })
-  }
-  const doSubmit = async () => {
-    emailForm.value.validate((valid) => {
-      if (valid) {
-        editUserEmail({
-          email: emailModify.value.email,
-          code: emailModify.value.code,
-          pass: emailModify.value.pass
-        }).then(() => {
-          userStore.ResetUserInfo({
-            email: emailModify.value.email
-          })
-          ElMessage.success('更新邮箱成功')
-          emit('update:showUpdateEmailPanel', false)
-        })
-      }
-    })
-  }
+    });
+};
+onBeforeUnmount(() => {
+    if (countdownTimer)
+        clearInterval(countdownTimer);
+});
 </script>
